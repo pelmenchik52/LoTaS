@@ -27,6 +27,8 @@ import AccountantCostsPage from "./pages/accountant/costs";
 import AccountantDiscrepanciesPage from "./pages/accountant/discrepancies";
 import AccountantArchivePage from "./pages/accountant/archive";
 
+import { ProtectedRoute } from "./components/ProtectedRoute";
+
 export const router = createBrowserRouter([
   {
     path: "/login",
@@ -37,29 +39,43 @@ export const router = createBrowserRouter([
     Component: Layout,
     children: [
       // Адміністратор
-      { path: "admin/users", Component: AdminUsersPage },
-      { path: "admin/network", Component: AdminNetworkPage },
-      { path: "admin/audit", Component: AdminAuditPage },
-      { path: "admin/inventory", Component: AdminInventoryPage },
+      {
+        path: "admin/users",
+        element: (
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <AdminUsersPage />
+          </ProtectedRoute>
+        ),
+      },
       
       // Менеджер
-      { path: "manager/routes", Component: ManagerRoutesPage },
-      { path: "manager/costs", Component: ManagerCostsPage },
-      { path: "manager/monitoring", Component: ManagerMonitoringPage },
+      {
+        path: "manager/routes",
+        element: (
+          <ProtectedRoute allowedRoles={["manager"]}>
+            <ManagerRoutesPage />
+          </ProtectedRoute>
+        ),
+      },
       
       // Комірник
-      { path: "warehouse/select", Component: WarehouseSelectPage },
-      { path: "warehouse/stock", Component: WarehouseStockPage },
-      { path: "warehouse/receiving", Component: WarehouseReceivingPage },
-      { path: "warehouse/shipping", Component: WarehouseShippingPage },
-      { path: "warehouse/audit", Component: WarehouseAuditPage },
-      { path: "warehouse/requests", Component: WarehouseRequestsPage },
-      
-      // Бухгалтер
-      { path: "accountant/reports", Component: AccountantReportsPage },
-      { path: "accountant/costs", Component: AccountantCostsPage },
-      { path: "accountant/discrepancies", Component: AccountantDiscrepanciesPage },
-      { path: "accountant/archive", Component: AccountantArchivePage },
+      {
+        path: "wharehouse/stock",
+        element: (
+          <ProtectedRoute allowedRoles={["warehouse"]}>
+            <WarehouseStockPage />
+          </ProtectedRoute>
+        ),
+      },
+
+      {
+        path: "accountant/reports",
+        element: (
+          <ProtectedRoute allowedRoles={["accountant"]}>
+            <AccountantReportsPage />
+          </ProtectedRoute>
+        ),
+      },
     ],
   },
 ]);
