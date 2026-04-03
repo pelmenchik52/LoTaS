@@ -10,15 +10,28 @@ import { Checkbox } from "../components/ui/checkbox";
 import { toast } from "sonner";
 import type { UserRole } from "../types";
 
+import { authService } from "../services/auth.service";
+
 const warehouses = ["Склад 1", "Склад 2", "Склад 3", "Склад 4", "Склад 5"];
 
-// Mock база користувачів для демонстрації
-const mockUsers = [
-  { email: "admin@company.com", password: "admin", role: "admin" as UserRole, name: "Адміністратор" },
-  { email: "manager@company.com", password: "manager", role: "manager" as UserRole, name: "Менеджер" },
-  { email: "warehouse@company.com", password: "warehouse", role: "warehouse" as UserRole, name: "Комірник" },
-  { email: "accountant@company.com", password: "accountant", role: "accountant" as UserRole, name: "Бухгалтер" },
-];
+const handleLogin = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setIsLoading(true);
+  try {
+    const { user } = await authService.login(loginEmail, loginPassword);
+    toast.success(`Вітаємо, ${user.name}!`);
+    // Перенаправлення залишається без змін:
+    switch (user.role) {
+      case "admin": navigate("/admin/users"); break;
+      case "manager": navigate("/manager/routes"); break;
+      case "warehouse": navigate("/warehouse/select"); break;
+      case "accountant": navigate("/accountant/reports"); break;
+    }
+  } catch {
+    toast.error("Невірний email або пароль");
+    setIsLoading(false);
+  }
+};
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -75,39 +88,29 @@ export default function LoginPage() {
   };
 
   const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!registerRole) {
-      toast.error("Оберіть роль користувача");
-      return;
+  e.preventDefault();
+  if (!registerRole) { toast.error("Оберіть роль"); return; }
+  setIsLoading(true);
+  try {
+    const { user } = await authService.register({
+      name: registerName,
+      email: registerEmail,
+      password: registerPassword,
+      role: registerRole,
+      warehouses: selectedWarehouses,
+    });
+    toast.success(`Реєстрацію завершено! Вітаємо, ${user.name}!`);
+    switch (user.role) {
+      case "admin": navigate("/admin/users"); break;
+      case "manager": navigate("/manager/routes"); break;
+      case "warehouse": navigate("/warehouse/select"); break;
+      case "accountant": navigate("/accountant/reports"); break;
     }
-
-    setIsLoading(true);
-
-    // Симуляція реєстрації
-    setTimeout(() => {
-      localStorage.setItem("userRole", registerRole);
-      localStorage.setItem("userName", registerName);
-      toast.success(`Реєстрацію завершено! Вітаємо, ${registerName}!`);
-      
-      setTimeout(() => {
-        switch (registerRole) {
-          case "admin":
-            navigate("/admin/users");
-            break;
-          case "manager":
-            navigate("/manager/routes");
-            break;
-          case "warehouse":
-            navigate("/warehouse/select");
-            break;
-          case "accountant":
-            navigate("/accountant/reports");
-            break;
-        }
-      }, 500);
-    }, 800);
-  };
+  } catch {
+    toast.error("Помилка реєстрації");
+    setIsLoading(false);
+  }
+};
 
   const toggleWarehouse = (warehouse: string) => {
     setSelectedWarehouses((prev) =>
