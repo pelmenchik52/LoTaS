@@ -12,6 +12,9 @@ import { Checkbox } from "../../components/ui/checkbox";
 import { UserPlus, Car, Edit, Trash2, Truck, Package as PackageIcon } from "lucide-react";
 import { toast } from "sonner";
 import type { Driver, Vehicle, Trailer } from "../../types";
+import { usersService } from "../../services/users.service";
+import { driversService } from "../../services/drivers.service";
+import { vehiclesService, trailersService } from "../../services/vehicles.service";
 
 type Role = "admin" | "manager" | "warehouse" | "accountant";
 
@@ -66,10 +69,23 @@ const roleColors: Record<Role, string> = {
 };
 
 export default function AdminUsersPage() {
-  const [users, setUsers] = useState<User[]>(initialUsers);
-  const [drivers, setDrivers] = useState<Driver[]>(initialDrivers);
-  const [vehicles, setVehicles] = useState<Vehicle[]>(initialVehicles);
-  const [trailers, setTrailers] = useState<Trailer[]>(initialTrailers);
+  const [users, setUsers] = useState<User[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [trailers, setTrailers] = useState<Trailer[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      usersService.getAll(),
+      driversService.getAll(),
+      vehiclesService.getAll(),
+      trailersService.getAll(),
+    ])
+      .then(([u, d, v, t]) => { setUsers(u); setDrivers(d); setVehicles(v); setTrailers(t); })
+      .catch(() => toast.error("Помилка завантаження даних"))
+      .finally(() => setIsLoading(false));
+  }, []);
 
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [editingDriver, setEditingDriver] = useState<Driver | null>(null);
@@ -88,9 +104,14 @@ export default function AdminUsersPage() {
   const [trailerForm, setTrailerForm] = useState({ type: "", length: "", width: "", maxWeight: "" });
 
   // Users
-  const handleDeleteUser = (id: string) => {
-    setUsers(users.filter((u) => u.id !== id));
-    toast.success("Користувача видалено");
+  const handleDeleteUser = async (id: string) => {
+    try {
+      await usersService.delete(id);
+      setUsers(users.filter(u => u.id !== id));
+      toast.success("Користувача видалено");
+    } catch {
+      toast.error("Не вдалося видалити користувача");
+    }
   };
 
   const handleEditUser = (user: User) => {
@@ -99,24 +120,20 @@ export default function AdminUsersPage() {
     setIsUserDialogOpen(true);
   };
 
-  const handleSaveUser = () => {
-    if (!userForm.name || !userForm.email || !userForm.role) {
-      toast.error("Заповніть усі поля");
-      return;
+  const handleSaveUser = async () => {
+    try {
+      if (editingUser) {
+        const updated = await usersService.update(editingUser.id, userForm);
+        setUsers(users.map(u => u.id === updated.id ? updated : u));
+      } else {
+        const created = await usersService.create(userForm as Omit<User, "id">);
+        setUsers([...users, created]);
+      }
+      toast.success("Збережено");
+      setIsUserDialogOpen(false);
+    } catch {
+      toast.error("Помилка збереження");
     }
-
-    if (editingUser) {
-      setUsers(users.map((u) => (u.id === editingUser.id ? { ...u, ...userForm } : u)));
-      toast.success("Користувача оновлено");
-    } else {
-      const newUser: User = { id: Date.now().toString(), ...userForm, active: true };
-      setUsers([...users, newUser]);
-      toast.success("Користувача додано");
-    }
-
-    setIsUserDialogOpen(false);
-    setEditingUser(null);
-    setUserForm({ name: "", email: "", role: "", warehouses: [] });
   };
 
   // Drivers
