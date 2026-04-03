@@ -1,4 +1,4 @@
-import { useState } from "react";
+//import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -18,16 +18,8 @@ interface Product {
   expiryDate?: string;
 }
 
-const products: Product[] = [
-  { id: "1", name: "Молоко 2.5%", category: "Молочні", quantity: 240, unit: "л", shelf: "A-12", status: "in-stock", expiryDate: "2026-04-15" },
-  { id: "2", name: "Хліб білий", category: "Хлібобулочні", quantity: 85, unit: "шт", shelf: "B-05", status: "in-stock", expiryDate: "2026-04-03" },
-  { id: "3", name: "Яблука Голден", category: "Фрукти", quantity: 120, unit: "кг", shelf: "C-08", status: "in-stock" },
-  { id: "4", name: "Сир твердий", category: "Молочні", quantity: 15, unit: "кг", shelf: "A-15", status: "low-stock", expiryDate: "2026-04-20" },
-  { id: "5", name: "Макарони", category: "Бакалія", quantity: 200, unit: "уп", shelf: "D-03", status: "in-stock" },
-  { id: "6", name: "Йогурт", category: "Молочні", quantity: 8, unit: "шт", shelf: "A-13", status: "low-stock", expiryDate: "2026-04-05" },
-  { id: "7", name: "Картопля", category: "Овочі", quantity: 0, unit: "кг", shelf: "C-10", status: "out-of-stock" },
-  { id: "8", name: "Цукор", category: "Бакалія", quantity: 150, unit: "кг", shelf: "D-01", status: "in-stock" },
-];
+import { useEffect, useState } from "react";
+import { stockService } from "../../services/products.service";
 
 const categories = ["Всі категорії", "Молочні", "Хлібобулочні", "Фрукти", "Овочі", "Бакалія"];
 
@@ -37,7 +29,19 @@ const statusConfig = {
   "out-of-stock": { label: "Відсутній", color: "text-red-600 border-red-600", icon: AlertTriangle },
 };
 
+const warehouseId = localStorage.getItem("warehouseId") ?? "";
+
 export default function WarehouseStockPage() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    stockService.getByWarehouse(warehouseId)
+      .then(setProducts)
+      .catch(() => toast.error("Не вдалося завантажити товари"))
+      .finally(() => setIsLoading(false));
+  }, [warehouseId]);
+  
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("Всі категорії");
   const [statusFilter, setStatusFilter] = useState("all");
