@@ -2,15 +2,13 @@
   "ExpandedNodes": [
     "",
     "\\back-end",
+    "\\back-end\\src",
+    "\\back-end\\src\\Controllers",
     "\\front-end",
     "\\front-end\\src",
     "\\front-end\\src\\app",
     "\\front-end\\src\\app\\pages",
-    "\\front-end\\src\\app\\pages\\accountant",
-    "\\front-end\\src\\app\\pages\\admin",
-    "\\front-end\\src\\app\\pages\\manager",
-    "\\front-end\\src\\app\\pages\\warehouse"
+    "\\front-end\\src\\app\\pages\\admin"
   ],
-  "SelectedNode": "\\front-end\\.env",
   "PreviewInSolutionExplorer": false
 }
