@@ -7,7 +7,7 @@ import { Input } from "../../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { RefreshCw, Search, ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
 import { toast } from "sonner";
-import { accountantApi, type TransactionDto } from "../../../api/api.ts";
+import { accountantApi, type TransactionDto } from "../../../api";
 
 export default function AccountantArchivePage() {
     const [transactions, setTransactions] = useState<TransactionDto[]>([]);

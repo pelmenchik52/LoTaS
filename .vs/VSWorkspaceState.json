@@ -2,14 +2,15 @@
   "ExpandedNodes": [
     "",
     "\\back-end",
-    "\\back-end\\src",
-    "\\back-end\\src\\Data",
-    "\\back-end\\src\\DTOs",
-    "\\back-end\\src\\Middlewares",
-    "\\back-end\\src\\Models",
-    "\\back-end\\src\\Repositories",
-    "\\front-end\\src"
+    "\\front-end",
+    "\\front-end\\src",
+    "\\front-end\\src\\app",
+    "\\front-end\\src\\app\\pages",
+    "\\front-end\\src\\app\\pages\\accountant",
+    "\\front-end\\src\\app\\pages\\admin",
+    "\\front-end\\src\\app\\pages\\manager",
+    "\\front-end\\src\\app\\pages\\warehouse"
   ],
-  "SelectedNode": "\\back-end\\src\\Repositories\\Repositories.cs",
+  "SelectedNode": "\\front-end\\.env",
   "PreviewInSolutionExplorer": false
 }

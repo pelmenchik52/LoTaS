@@ -6,7 +6,7 @@ import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { RefreshCw, Search } from "lucide-react";
 import { toast } from "sonner";
-import { adminApi, type AuditLogDto } from "../../../api/api.ts";
+import { adminApi, type AuditLogDto } from "../../../api";
 
 export default function AdminAuditPage() {
     const [logs, setLogs] = useState<AuditLogDto[]>([]);

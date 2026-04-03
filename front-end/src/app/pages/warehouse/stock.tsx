@@ -7,8 +7,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Badge } from "../../components/ui/badge";
 import { Search, Package, AlertTriangle, CheckCircle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
-import { warehouseApi, type StockDto } from "../../../api/api.ts";
-import { authApi } from "../../../api/api.ts";
+import { warehouseApi, type StockDto } from "../../../api";
+import { authApi } from "../../../api";
 
 const statusConfig = {
     "in-stock": { label: "В наявності", color: "text-green-600 border-green-600", icon: CheckCircle },

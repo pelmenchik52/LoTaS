@@ -70,7 +70,18 @@ builder.Services.AddScoped<InventoryService>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-
+//
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.WithOrigins("http://localhost:5173", "http://localhost:5174")
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
+//
 var app = builder.Build();
 
 // Seed database on startup
