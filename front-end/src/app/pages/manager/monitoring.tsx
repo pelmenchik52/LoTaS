@@ -1,320 +1,200 @@
-import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
-import { Progress } from "../../components/ui/progress";
 import { Button } from "../../components/ui/button";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "../../components/ui/alert-dialog";
-import { Truck, MapPin, Clock, CheckCircle, AlertCircle, Navigation, AlertTriangle, XCircle } from "lucide-react";
-import type { Driver, Vehicle } from "../../types";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
+import { Truck, Clock, CheckCircle, AlertTriangle, XCircle, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
+import { managerApi, type RouteDto, type DeliveryRequestDto } from "../../../api";
 
-interface Route {
-  id: string;
-  driverId: string;
-  vehicleId: string;
-  status: "on-time" | "delayed" | "completed" | "cancelled";
-  progress: number;
-  currentLocation: string;
-  stops: number;
-  completedStops: number;
-  estimatedTime: string;
-  actualTime?: string;
-}
+const routeStatusConfig: Record<string, { label: string; icon: any; color: string }> = {
+    planned: { label: "Заплановано", icon: Clock, color: "text-blue-600 border-blue-600" },
+    "in-progress": { label: "В дорозі", icon: Truck, color: "text-orange-600 border-orange-600" },
+    completed: { label: "Завершено", icon: CheckCircle, color: "text-green-600 border-green-600" },
+    cancelled: { label: "Скасовано", icon: XCircle, color: "text-red-600 border-red-600" },
+};
 
-const mockDrivers: Driver[] = [
-  { id: "1", name: "Дмитро Іваненко", phone: "+380 67 123 4567", license: "ABC123456", vehicleId: "1", hourlyRate: 150, workHoursPerDay: 8, workHoursThisWeek: 32, maxHoursPerWeek: 48, isBusy: true, active: true },
-  { id: "2", name: "Андрій Мельник", phone: "+380 63 987 6543", license: "DEF789012", vehicleId: "2", hourlyRate: 160, workHoursPerDay: 8, workHoursThisWeek: 40, maxHoursPerWeek: 48, isBusy: true, active: true },
-  { id: "3", name: "Василь Петров", phone: "+380 50 555 1234", license: "GHI345678", vehicleId: "3", hourlyRate: 145, workHoursPerDay: 8, workHoursThisWeek: 24, maxHoursPerWeek: 48, isBusy: false, active: true },
-];
-
-const mockVehicles: Vehicle[] = [
-  { id: "1", model: "Mercedes Actros", plateNumber: "AA 1234 BB", fuelConsumption: 28.5, power: 450, trailerId: "1", fuelType: "diesel", capacity: 20000, active: true },
-  { id: "2", model: "Volvo FH16", plateNumber: "AA 5678 BB", fuelConsumption: 30.0, power: 540, trailerId: "2", fuelType: "diesel", capacity: 18000, active: true },
-  { id: "3", model: "MAN TGX", plateNumber: "AA 9012 CC", fuelConsumption: 27.5, power: 500, trailerId: null, fuelType: "diesel", capacity: 19000, active: true },
-];
-
-const initialRoutes: Route[] = [
-  {
-    id: "1",
-    driverId: "1",
-    vehicleId: "1",
-    status: "on-time",
-    progress: 65,
-    currentLocation: "Поблизу Сільпо Центр",
-    stops: 5,
-    completedStops: 3,
-    estimatedTime: "14:30",
-  },
-  {
-    id: "2",
-    driverId: "2",
-    vehicleId: "2",
-    status: "on-time",
-    progress: 40,
-    currentLocation: "На шляху до АТБ Подол",
-    stops: 4,
-    completedStops: 1,
-    estimatedTime: "15:00",
-  },
-];
-
-const statusConfig = {
-  "on-time": {
-    label: "Вчасно",
-    color: "bg-green-100 text-green-700 border-green-300",
-    icon: CheckCircle,
-  },
-  delayed: {
-    label: "Затримка",
-    color: "bg-yellow-100 text-yellow-700 border-yellow-300",
-    icon: AlertCircle,
-  },
-  completed: {
-    label: "Завершено",
-    color: "bg-blue-100 text-blue-700 border-blue-300",
-    icon: CheckCircle,
-  },
-  cancelled: {
-    label: "Скасовано",
-    color: "bg-red-100 text-red-700 border-red-300",
-    icon: XCircle,
-  },
+const urgencyLabels: Record<number, string> = { 1: "Нормальний", 2: "Підвищений", 3: "Критичний" };
+const urgencyColors: Record<number, string> = {
+    1: "text-green-600 border-green-600",
+    2: "text-orange-600 border-orange-600",
+    3: "text-red-600 border-red-600",
 };
 
 export default function ManagerMonitoringPage() {
-  const [routes, setRoutes] = useState<Route[]>(initialRoutes);
+    const [routes, setRoutes] = useState<RouteDto[]>([]);
+    const [requests, setRequests] = useState<DeliveryRequestDto[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [statusFilter, setStatusFilter] = useState("all");
 
-  const getDriverById = (id: string) => mockDrivers.find((d) => d.id === id);
-  const getVehicleById = (id: string) => mockVehicles.find((v) => v.id === id);
+    const load = async () => {
+        try {
+            setLoading(true);
+            const [r, req] = await Promise.all([managerApi.getRoutes(), managerApi.getRequests()]);
+            setRoutes(r); setRequests(req);
+        } catch (e: any) { toast.error(e.message); }
+        finally { setLoading(false); }
+    };
 
-  const handleCancelRoute = (routeId: string) => {
-    setRoutes(
-      routes.map((r) =>
-        r.id === routeId
-          ? {
-              ...r,
-              status: "cancelled",
-              actualTime: "Скасовано",
-            }
-          : r
-      )
-    );
-  };
+    useEffect(() => { load(); }, []);
 
-  const activeRoutes = routes.filter((r) => r.status !== "completed" && r.status !== "cancelled");
-  const completedRoutes = routes.filter((r) => r.status === "completed");
-  const delayedRoutes = routes.filter((r) => r.status === "delayed");
-  const cancelledRoutes = routes.filter((r) => r.status === "cancelled");
+    const handleUpdateRoute = async (id: number, status: string) => {
+        try {
+            await managerApi.updateRouteStatus(id, status);
+            toast.success("Статус оновлено");
+            load();
+        } catch (e: any) { toast.error(e.message); }
+    };
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold mb-2">Моніторинг виконання</h1>
-        <p className="text-muted-foreground">Відстеження доставок в реальному часі та контроль водіїв</p>
-      </div>
+    const handleUpdateRequest = async (id: number, status: string) => {
+        try {
+            await managerApi.updateRequestStatus(id, status);
+            toast.success("Статус запиту оновлено");
+            load();
+        } catch (e: any) { toast.error(e.message); }
+    };
 
-      {/* Статистика */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-6">
+    const filteredRoutes = statusFilter === "all" ? routes : routes.filter(r => r.status === statusFilter);
+    const activeRoutes = routes.filter(r => r.status === "in-progress").length;
+    const pendingRequests = requests.filter(r => r.status === "pending").length;
+    const criticalRequests = requests.filter(r => r.urgency === 3 && r.status === "pending").length;
+
+    return (
+        <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Активні маршруті</p>
-                <p className="text-2xl font-bold">{activeRoutes.length}</p>
-              </div>
-              <Truck className="h-8 w-8 text-blue-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Завершено</p>
-                <p className="text-2xl font-bold">{completedRoutes.length}</p>
-              </div>
-              <CheckCircle className="h-8 w-8 text-green-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Затримки</p>
-                <p className="text-2xl font-bold">{delayedRoutes.length}</p>
-              </div>
-              <AlertCircle className="h-8 w-8 text-yellow-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Скасовано</p>
-                <p className="text-2xl font-bold">{cancelledRoutes.length}</p>
-              </div>
-              <XCircle className="h-8 w-8 text-red-500" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Список маршрутів */}
-      <div className="space-y-4">
-        <h2 className="text-xl font-semibold">Поточні маршрути</h2>
-
-        {routes.map((route) => {
-          const driver = getDriverById(route.driverId);
-          const vehicle = getVehicleById(route.vehicleId);
-          const config = statusConfig[route.status];
-          const StatusIcon = config.icon;
-
-          return (
-            <Card key={route.id}>
-              <CardHeader>
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                  <div className="space-y-1">
-                    <CardTitle className="flex items-center gap-2">
-                      {driver?.name || "Невідомий водій"}
-                    </CardTitle>
-                    <CardDescription className="flex items-center gap-2">
-                      <Truck className="h-4 w-4" />
-                      {vehicle?.model || "Невідомий транспорт"} ({vehicle?.plateNumber})
-                    </CardDescription>
-                  </div>
-                  <Badge className={config.color + " border"}>
-                    <StatusIcon className="h-4 w-4 mr-1" />
-                    {config.label}
-                  </Badge>
+                <div>
+                    <h1 className="text-3xl font-bold mb-2">Моніторинг виконання</h1>
+                    <p className="text-muted-foreground">Відстеження маршрутів та запитів</p>
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Інформація про водія */}
-                {driver && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-muted rounded-lg text-sm">
-                    <div>
-                      <p className="text-muted-foreground">Телефон</p>
-                      <p className="font-medium">{driver.phone}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Години цього тижня</p>
-                      <p className="font-medium">
-                        {driver.workHoursThisWeek} / {driver.maxHoursPerWeek}
-                      </p>
-                    </div>
-                  </div>
-                )}
+                <Button variant="outline" onClick={load} disabled={loading}>
+                    <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />Оновити
+                </Button>
+            </div>
 
-                {/* Прогрес */}
-                {route.status !== "cancelled" && (
-                  <>
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium">
-                          Прогрес: {route.completedStops} з {route.stops} зупинок
-                        </span>
-                        <span className="text-sm font-medium">{route.progress}%</span>
-                      </div>
-                      <Progress value={route.progress} className="h-2" />
-                    </div>
-
-                    {/* Локація та час */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div className="flex items-start gap-2">
-                        <MapPin className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
-                        <div>
-                          <p className="text-sm font-medium">Поточна локація</p>
-                          <p className="text-sm text-muted-foreground">{route.currentLocation}</p>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                {[
+                    { label: "Всього маршрутів", value: routes.length, icon: Truck, color: "text-blue-600" },
+                    { label: "Активних", value: activeRoutes, icon: Truck, color: "text-orange-600" },
+                    { label: "Очікують рішення", value: pendingRequests, icon: Clock, color: "text-yellow-600" },
+                    { label: "Критичних запитів", value: criticalRequests, icon: AlertTriangle, color: "text-red-600" },
+                ].map(({ label, value, icon: Icon, color }) => (
+                    <Card key={label}><CardContent className="p-6">
+                        <div className="flex items-center justify-between">
+                            <div><p className="text-sm text-muted-foreground mb-1">{label}</p><p className="text-3xl font-bold">{value}</p></div>
+                            <Icon className={`h-10 w-10 ${color}`} />
                         </div>
-                      </div>
+                    </CardContent></Card>
+                ))}
+            </div>
 
-                      <div className="flex items-start gap-2">
-                        <Clock className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
-                        <div>
-                          <p className="text-sm font-medium">Очікуваний час завершення</p>
-                          <p className="text-sm text-muted-foreground">{route.actualTime || route.estimatedTime}</p>
+            {/* Delivery Requests */}
+            {pendingRequests > 0 && (
+                <Card>
+                    <CardHeader><CardTitle>Запити на доставку ({pendingRequests} очікують)</CardTitle></CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Склад</TableHead>
+                                    <TableHead>Товари</TableHead>
+                                    <TableHead>Терміновість</TableHead>
+                                    <TableHead>Дата</TableHead>
+                                    <TableHead className="text-right">Дії</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {requests.filter(r => r.status === "pending")
+                                    .sort((a, b) => b.urgency - a.urgency)
+                                    .map(r => (
+                                        <TableRow key={r.id}>
+                                            <TableCell className="font-medium">{r.warehouseName}</TableCell>
+                                            <TableCell className="text-sm text-muted-foreground">
+                                                {r.products.map(p => `${p.productName ?? `#${p.productId}`} × ${p.quantity}`).join(", ")}
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge variant="outline" className={urgencyColors[r.urgency]}>
+                                                    {urgencyLabels[r.urgency]}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell className="text-sm text-muted-foreground">
+                                                {new Date(r.createdAt).toLocaleDateString("uk-UA")}
+                                            </TableCell>
+                                            <TableCell className="text-right space-x-2">
+                                                <Button size="sm" onClick={() => handleUpdateRequest(r.id, "approved")}>Схвалити</Button>
+                                                <Button size="sm" variant="outline" className="text-red-500"
+                                                    onClick={() => handleUpdateRequest(r.id, "rejected")}>Відхилити</Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+            )}
+
+            {/* Routes */}
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                    <CardTitle>Маршрути</CardTitle>
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                        <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Всі статуси</SelectItem>
+                            <SelectItem value="planned">Заплановані</SelectItem>
+                            <SelectItem value="in-progress">В дорозі</SelectItem>
+                            <SelectItem value="completed">Завершені</SelectItem>
+                            <SelectItem value="cancelled">Скасовані</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </CardHeader>
+                <CardContent>
+                    {loading ? <div className="text-center py-8 text-muted-foreground">Завантаження...</div> : (
+                        <div className="overflow-x-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Маршрут</TableHead>
+                                        <TableHead className="hidden md:table-cell">Водій</TableHead>
+                                        <TableHead className="hidden md:table-cell">Авто</TableHead>
+                                        <TableHead>Статус</TableHead>
+                                        <TableHead className="text-right">Дії</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {filteredRoutes.map(r => {
+                                        const sc = routeStatusConfig[r.status] ?? routeStatusConfig.planned;
+                                        const Icon = sc.icon;
+                                        return (
+                                            <TableRow key={r.id}>
+                                                <TableCell className="font-medium">{r.from} → {r.to}</TableCell>
+                                                <TableCell className="hidden md:table-cell text-muted-foreground">{r.driverName ?? "—"}</TableCell>
+                                                <TableCell className="hidden md:table-cell text-muted-foreground">{r.vehicleModel ?? "—"}</TableCell>
+                                                <TableCell>
+                                                    <Badge variant="outline" className={sc.color}>
+                                                        <Icon className="h-3 w-3 mr-1" />{sc.label}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    {r.status === "planned" && (
+                                                        <Button size="sm" onClick={() => handleUpdateRoute(r.id, "in-progress")}>Запустити</Button>
+                                                    )}
+                                                    {r.status === "in-progress" && (
+                                                        <Button size="sm" onClick={() => handleUpdateRoute(r.id, "completed")}>Завершити</Button>
+                                                    )}
+                                                </TableCell>
+                                            </TableRow>
+                                        );
+                                    })}
+                                    {filteredRoutes.length === 0 && (
+                                        <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Маршрутів немає</TableCell></TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
                         </div>
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                {/* Дії */}
-                <div className="flex gap-2 pt-2">
-                  <Button variant="outline" size="sm" className="gap-2">
-                    <Navigation className="h-4 w-4" />
-                    Відстежити на карті
-                  </Button>
-                  {route.status === "on-time" && (
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="outline" size="sm">
-                          Скасувати маршрут
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Ви впевнені?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Це скасує поточний маршрут. Ви впевнені, що хочете продовжити?
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Скасувати</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => handleCancelRoute(route.id)}>
-                            Скасувати маршрут
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-
-      {/* Статус водіїв */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Статус всіх водіїв</CardTitle>
-          <CardDescription>Моніторинг доступності водіїв</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {mockDrivers.map((driver) => (
-              <div key={driver.id} className="flex items-center justify-between p-3 border rounded-lg">
-                <div className="flex-1">
-                  <p className="font-medium">{driver.name}</p>
-                  <p className="text-sm text-muted-foreground">{driver.phone}</p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="text-sm text-right">
-                    <p className="text-muted-foreground">Години тижня</p>
-                    <p className="font-medium">
-                      {driver.workHoursThisWeek}/{driver.maxHoursPerWeek}
-                    </p>
-                  </div>
-                  <div>
-                    {driver.isBusy ? (
-                      <Badge variant="outline">Зайнятий</Badge>
-                    ) : (
-                      <Badge variant="outline" className="border-green-500 text-green-600">
-                        Вільний
-                      </Badge>
                     )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
+                </CardContent>
+            </Card>
+        </div>
+    );
 }

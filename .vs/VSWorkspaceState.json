@@ -1,8 +1,15 @@
 {
   "ExpandedNodes": [
     "",
-    "\\front-end"
+    "\\back-end",
+    "\\back-end\\src",
+    "\\back-end\\src\\Data",
+    "\\back-end\\src\\DTOs",
+    "\\back-end\\src\\Middlewares",
+    "\\back-end\\src\\Models",
+    "\\back-end\\src\\Repositories",
+    "\\front-end\\src"
   ],
-  "SelectedNode": "\\.gitignore",
+  "SelectedNode": "\\back-end\\src\\Repositories\\Repositories.cs",
   "PreviewInSolutionExplorer": false
 }
