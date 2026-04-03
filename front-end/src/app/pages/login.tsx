@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Checkbox } from "../components/ui/checkbox";
 import { toast } from "sonner";
 import type { UserRole } from "../types";
-import { authApi } from "../../api";
+import { authApi } from "../../api/api.ts";
 
 const warehouseOptions = [
     { id: 1, name: "Склад 1" },

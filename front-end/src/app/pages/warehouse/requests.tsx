@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Textarea } from "../../components/ui/textarea";
 import { Plus, Clock, CheckCircle, XCircle, Package, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
-import { warehouseApi, authApi, type DeliveryRequestDto, type ProductDto } from "../../../api";
+import { warehouseApi, authApi, type DeliveryRequestDto, type ProductDto } from "../../../api/api.ts";
 
 const statusConfig: Record<string, { label: string; icon: any; color: string }> = {
     pending: { label: "Очікує", icon: Clock, color: "text-yellow-600 border-yellow-600" },
