@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/ta
 import { Checkbox } from "../../components/ui/checkbox";
 import { UserPlus, Edit, Trash2, Car, Truck, Package as PackageIcon, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
-import { adminApi, type UserDto, type DriverDto, type VehicleDto, type TrailerDto } from "../../../api";
+import { adminApi, type UserDto, type DriverDto, type VehicleDto, type TrailerDto } from "../../../api/api.ts";
 
 type Role = "admin" | "manager" | "warehouse" | "accountant";
 const roleLabels: Record<Role, string> = { admin: "Адміністратор", manager: "Менеджер", warehouse: "Комірник", accountant: "Бухгалтер" };
