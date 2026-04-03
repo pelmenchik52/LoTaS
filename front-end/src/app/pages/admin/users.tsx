@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -121,12 +121,19 @@ export default function AdminUsersPage() {
   };
 
   const handleSaveUser = async () => {
+    if (!userForm.name || !userForm.email || !userForm.role) {
+      toast.error("Заповніть усі обов'язкові поля");
+      return;
+    }
+    // Тепер TypeScript знає, що role точно не ""
+    const validForm = userForm as { name: string; email: string; role: Role; warehouses: string[] };
+
     try {
       if (editingUser) {
-        const updated = await usersService.update(editingUser.id, userForm);
+        const updated = await usersService.update(editingUser.id, validForm);
         setUsers(users.map(u => u.id === updated.id ? updated : u));
       } else {
-        const created = await usersService.create(userForm as Omit<User, "id">);
+        const created = await usersService.create({ ...validForm, active: true });
         setUsers([...users, created]);
       }
       toast.success("Збережено");
