@@ -33,7 +33,7 @@ services:
     ports:
       - "5173:5173"
     environment:
-      - VITE_API_URL=http://host.docker.internal:8080/api
+      - VITE_API_URL=http://localhost:8080/api
     volumes:
       - ./front-end/src:/app/src                 
     depends_on:
