@@ -51,6 +51,9 @@ export default function AdminUsersPage() {
     const [vCapacity, setVCapacity] = useState(""); const [vFuelType, setVFuelType] = useState("diesel");
     const [vTrailerId, setVTrailerId] = useState("");
 
+    const sanitizePositiveNumberInput = (value: string) =>
+        value.startsWith("-") ? value.slice(1) : value;
+
     const load = async () => {
         try {
             setLoading(true);
@@ -93,7 +96,24 @@ export default function AdminUsersPage() {
 
     const handleSaveDriver = async () => {
         try {
-            await adminApi.createDriver({ name: dName, phone: dPhone, license: dLicense, vehicleId: dVehicleId ? Number(dVehicleId) : null, hourlyRate: Number(dRate), workHoursPerDay: Number(dHours), maxHoursPerWeek: Number(dMaxHours) });
+            const hourlyRate = Number(dRate);
+            const workHoursPerDay = Number(dHours);
+            const maxHoursPerWeek = Number(dMaxHours);
+
+            if (hourlyRate < 0 || workHoursPerDay < 0 || maxHoursPerWeek < 0) {
+                toast.error("Значення ставки та годин не можуть бути від'ємними");
+                return;
+            }
+
+            await adminApi.createDriver({
+                name: dName,
+                phone: dPhone,
+                license: dLicense,
+                vehicleId: dVehicleId && dVehicleId !== "none" ? Number(dVehicleId) : null,
+                hourlyRate,
+                workHoursPerDay,
+                maxHoursPerWeek,
+            });
             toast.success("Водія додано"); setDriverDialog(false); load();
         } catch (e: any) { toast.error(e.message); }
     };
@@ -105,7 +125,24 @@ export default function AdminUsersPage() {
 
     const handleSaveVehicle = async () => {
         try {
-            await adminApi.createVehicle({ model: vModel, plateNumber: vPlate, fuelConsumption: Number(vFuel), power: Number(vPower), capacity: Number(vCapacity), fuelType: vFuelType, trailerId: vTrailerId ? Number(vTrailerId) : null });
+            const fuelConsumption = Number(vFuel);
+            const power = Number(vPower);
+            const capacity = Number(vCapacity);
+
+            if (fuelConsumption < 0 || power < 0 || capacity < 0) {
+                toast.error("Значення технічних параметрів не можуть бути від'ємними");
+                return;
+            }
+
+            await adminApi.createVehicle({
+                model: vModel,
+                plateNumber: vPlate,
+                fuelConsumption,
+                power,
+                capacity,
+                fuelType: vFuelType,
+                trailerId: vTrailerId && vTrailerId !== "none" ? Number(vTrailerId) : null,
+            });
             toast.success("Авто додано"); setVehicleDialog(false); load();
         } catch (e: any) { toast.error(e.message); }
     };
@@ -315,15 +352,15 @@ export default function AdminUsersPage() {
                             <Select value={dVehicleId} onValueChange={setDVehicleId}>
                                 <SelectTrigger><SelectValue placeholder="Без авто" /></SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">Без авто</SelectItem>
+                                    <SelectItem value="none">Без авто</SelectItem>
                                     {vehicles.map(v => <SelectItem key={v.id} value={String(v.id)}>{v.model} ({v.plateNumber})</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         </div>
                         <div className="grid grid-cols-3 gap-2">
-                            <div className="space-y-2"><Label>Ставка (грн/год)</Label><Input type="number" value={dRate} onChange={e => setDRate(e.target.value)} /></div>
-                            <div className="space-y-2"><Label>Год/день</Label><Input type="number" value={dHours} onChange={e => setDHours(e.target.value)} /></div>
-                            <div className="space-y-2"><Label>Макс год/тиж</Label><Input type="number" value={dMaxHours} onChange={e => setDMaxHours(e.target.value)} /></div>
+                            <div className="space-y-2"><Label>Ставка (грн/год)</Label><Input type="number" min={0} value={dRate} onChange={e => setDRate(sanitizePositiveNumberInput(e.target.value))} /></div>
+                            <div className="space-y-2"><Label>Год/день</Label><Input type="number" min={0} value={dHours} onChange={e => setDHours(sanitizePositiveNumberInput(e.target.value))} /></div>
+                            <div className="space-y-2"><Label>Макс год/тиж</Label><Input type="number" min={0} value={dMaxHours} onChange={e => setDMaxHours(sanitizePositiveNumberInput(e.target.value))} /></div>
                         </div>
                         <Button className="w-full" onClick={handleSaveDriver}>Додати водія</Button>
                     </div>
@@ -338,9 +375,9 @@ export default function AdminUsersPage() {
                         <div className="space-y-2"><Label>Модель</Label><Input value={vModel} onChange={e => setVModel(e.target.value)} /></div>
                         <div className="space-y-2"><Label>Номерний знак</Label><Input value={vPlate} onChange={e => setVPlate(e.target.value)} /></div>
                         <div className="grid grid-cols-2 gap-2">
-                            <div className="space-y-2"><Label>Розхід л/100км</Label><Input type="number" value={vFuel} onChange={e => setVFuel(e.target.value)} /></div>
-                            <div className="space-y-2"><Label>Потужність (к.с.)</Label><Input type="number" value={vPower} onChange={e => setVPower(e.target.value)} /></div>
-                            <div className="space-y-2"><Label>Вантажність (кг)</Label><Input type="number" value={vCapacity} onChange={e => setVCapacity(e.target.value)} /></div>
+                            <div className="space-y-2"><Label>Розхід л/100км</Label><Input type="number" min={0} value={vFuel} onChange={e => setVFuel(sanitizePositiveNumberInput(e.target.value))} /></div>
+                            <div className="space-y-2"><Label>Потужність (к.с.)</Label><Input type="number" min={0} value={vPower} onChange={e => setVPower(sanitizePositiveNumberInput(e.target.value))} /></div>
+                            <div className="space-y-2"><Label>Вантажність (кг)</Label><Input type="number" min={0} value={vCapacity} onChange={e => setVCapacity(sanitizePositiveNumberInput(e.target.value))} /></div>
                             <div className="space-y-2">
                                 <Label>Тип палива</Label>
                                 <Select value={vFuelType} onValueChange={setVFuelType}>
@@ -358,7 +395,7 @@ export default function AdminUsersPage() {
                             <Select value={vTrailerId} onValueChange={setVTrailerId}>
                                 <SelectTrigger><SelectValue placeholder="Без причепа" /></SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">Без причепа</SelectItem>
+                                    <SelectItem value="none">Без причепа</SelectItem>
                                     {trailers.map(t => <SelectItem key={t.id} value={String(t.id)}>{t.type} ({t.maxWeight / 1000} т)</SelectItem>)}
                                 </SelectContent>
                             </Select>
