@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  # 1. MySQL
+  db:
+    image: mysql:8.0
+    container_name: logistics_db
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword 
+      MYSQL_DATABASE: logistics_db  
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql      
+
+  # 2.  C# ASP.NET 
+  backend:
+    build:
+      context: ./back-end             
+      dockerfile: Dockerfile
+    container_name: logistics_backend
+    ports:
+      - "8080:8080"                   
+    environment:
+      - ConnectionStrings__DefaultConnection=Server=db;Port=3306;Database=logistics_db;User=root;Password=rootpassword;
+    depends_on:
+      - db
+
+  # 3.React (Vite)
+  frontend:
+    build:
+      context: ./front-end                       
+      dockerfile: Dockerfile
+    container_name: logistics_frontend
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://host.docker.internal:8080/api
+    volumes:
+      - ./front-end/src:/app/src                 
+    depends_on:
+      - backend
+
+volumes:
+  mysql_data: 
