@@ -1,45 +1,59 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-import { Fuel, DollarSign, TrendingDown, Download } from "lucide-react";
+import { Fuel, DollarSign, TrendingDown, Download, Loader2 } from "lucide-react";
 import { Badge } from "../../components/ui/badge";
-
-const mileageData = [
-  { vehicle: "Mercedes Sprinter", mileage: 1240, fuel: 148.8, cost: 7738 },
-  { vehicle: "Ford Transit", mileage: 980, fuel: 98.0, cost: 5096 },
-  { vehicle: "Renault Master", mileage: 1150, fuel: 126.5, cost: 6578 },
-];
-
-const fuelComparisonData = [
-  { date: "25.03", planned: 45, actual: 48 },
-  { date: "26.03", planned: 42, actual: 43 },
-  { date: "27.03", planned: 48, actual: 51 },
-  { date: "28.03", planned: 52, actual: 55 },
-  { date: "29.03", planned: 46, actual: 47 },
-  { date: "30.03", planned: 44, actual: 45 },
-  { date: "31.03", planned: 47, actual: 49 },
-];
-
-const costBreakdown = [
-  { name: "Паливо", value: 19412, color: "#3b82f6" },
-  { name: "Зарплата водіїв", value: 15800, color: "#10b981" },
-  { name: "Амортизація", value: 12450, color: "#f59e0b" },
-  { name: "Обслуговування", value: 3200, color: "#ef4444" },
-];
+import { accountantApi } from "../../api/api";
+import type { RouteDto } from "../../api/api";
 
 export default function AccountantCostsPage() {
+  const [routes, setRoutes] = useState<RouteDto[]>([]);
+  const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState("week");
 
-  const totalMileage = mileageData.reduce((sum, v) => sum + v.mileage, 0);
-  const totalFuel = mileageData.reduce((sum, v) => sum + v.fuel, 0);
-  const totalCost = costBreakdown.reduce((sum, c) => sum + c.value, 0);
-  const avgFuelConsumption = (totalFuel / totalMileage) * 100;
+  // Load data on component mount
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const reportsData = await accountantApi.getReports();
+      setRoutes(reportsData);
+    } catch (error) {
+      console.error("Помилка завантаження даних:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Calculate totals from routes data
+  const totalMileage = routes.reduce((sum, r) => sum + r.distance, 0);
+  const totalFuelCost = routes.reduce((sum, r) => sum + (r.fuelCost || 0), 0);
+  const totalDriverSalary = routes.reduce((sum, r) => sum + (r.driverSalary || 0), 0);
+  const totalCost = routes.reduce((sum, r) => sum + (r.totalCost || 0), 0);
+
+  // Mock cost breakdown for now (could be enhanced with real API data)
+  const costBreakdown = [
+    { name: "Паливо", value: totalFuelCost, color: "#3b82f6" },
+    { name: "Зарплата водіїв", value: totalDriverSalary, color: "#10b981" },
+    { name: "Амортизація", value: Math.round(totalCost * 0.2), color: "#f59e0b" },
+    { name: "Обслуговування", value: Math.round(totalCost * 0.1), color: "#ef4444" },
+  ];
+
+  // Mock fuel comparison data (could be enhanced with real API data)
+  const fuelComparisonData = routes.slice(0, 7).map((route, index) => ({
+    date: new Date(route.createdAt).toLocaleDateString('uk-UA'),
+    planned: Math.round((route.fuelCost || 0) * 0.9), // Mock planned as 90% of actual
+    actual: Math.round(route.fuelCost || 0),
+  }));
 
   const totalPlannedFuel = fuelComparisonData.reduce((sum, d) => sum + d.planned, 0);
   const totalActualFuel = fuelComparisonData.reduce((sum, d) => sum + d.actual, 0);
-  const fuelDeviation = ((totalActualFuel - totalPlannedFuel) / totalPlannedFuel) * 100;
+  const fuelDeviation = totalPlannedFuel > 0 ? ((totalActualFuel - totalPlannedFuel) / totalPlannedFuel) * 100 : 0;
 
   return (
     <div className="space-y-6">
@@ -68,34 +82,41 @@ export default function AccountantCostsPage() {
         </div>
       </div>
 
-      {/* Статистика */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground mb-1">Пробіг</p>
-                <p className="text-3xl font-bold">{totalMileage.toLocaleString()}</p>
-              </div>
-              <TrendingDown className="h-10 w-10 text-blue-600" />
-            </div>
-            <div className="text-xs text-muted-foreground mt-2">
-              Кілометрів
-            </div>
-          </CardContent>
-        </Card>
+      {loading ? (
+        <div className="flex justify-center items-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin" />
+          <span className="ml-2">Завантаження даних...</span>
+        </div>
+      ) : (
+        <>
+          {/* Статистика */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">Пробіг</p>
+                    <p className="text-3xl font-bold">{totalMileage.toLocaleString()}</p>
+                  </div>
+                  <TrendingDown className="h-10 w-10 text-blue-600" />
+                </div>
+                <div className="text-xs text-muted-foreground mt-2">
+                  Кілометрів
+                </div>
+              </CardContent>
+            </Card>
 
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground mb-1">Витрачено палива</p>
-                <p className="text-3xl font-bold">{totalFuel.toFixed(0)}</p>
+                <p className="text-sm text-muted-foreground mb-1">Витрати на паливо</p>
+                <p className="text-3xl font-bold">{totalFuelCost.toLocaleString()}</p>
               </div>
               <Fuel className="h-10 w-10 text-green-600" />
             </div>
             <div className="text-xs text-muted-foreground mt-2">
-              Літрів
+              Гривень
             </div>
           </CardContent>
         </Card>
@@ -119,13 +140,13 @@ export default function AccountantCostsPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground mb-1">Середня витрата</p>
-                <p className="text-3xl font-bold">{avgFuelConsumption.toFixed(1)}</p>
+                <p className="text-sm text-muted-foreground mb-1">Зарплата водіїв</p>
+                <p className="text-3xl font-bold">{totalDriverSalary.toLocaleString()}</p>
               </div>
-              <Fuel className="h-10 w-10 text-purple-600" />
+              <DollarSign className="h-10 w-10 text-purple-600" />
             </div>
             <div className="text-xs text-muted-foreground mt-2">
-              л/100км
+              Гривень
             </div>
           </CardContent>
         </Card>
@@ -287,6 +308,8 @@ export default function AccountantCostsPage() {
           </div>
         </CardContent>
       </Card>
+      </>
+      )}
     </div>
   );
 }
