@@ -8,8 +8,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../../components/ui/dialog";
 import { Edit, Trash2, Plus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { adminApi } from "../../api/api";
-import type { ProductDto, StockDto } from "../../api/api";
+import { adminApi } from "../../../api/api";
+import type { ProductDto, StockDto } from "../../../api/api";
 
 export default function AdminInventoryPage() {
   const [products, setProducts] = useState<ProductDto[]>([]);
