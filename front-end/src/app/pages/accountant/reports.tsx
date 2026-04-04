@@ -39,13 +39,13 @@ export default function AccountantReportsPage() {
     const totalDeliveries = reports.reduce((sum, route) => sum + route.orders.length, 0);
     const totalProducts = reports.reduce(
       (sum, route) => sum + route.orders.reduce(
-        (orderSum, order) => orderSum + order.products.reduce((prodSum, prod) => prodSum + prod.Quantity, 0),
+        (orderSum, order) => orderSum + order.products.reduce((prodSum, prod) => prodSum + prod.quantity, 0),
         0
       ),
       0
     );
-    const totalDistance = reports.reduce((sum, route) => sum + route.Distance, 0);
-    const totalCost = reports.reduce((sum, route) => sum + Number(route.TotalCost ?? 0), 0);
+    const totalDistance = reports.reduce((sum, route) => sum + route.distance, 0);
+    const totalCost = reports.reduce((sum, route) => sum + Number(route.totalCost ?? 0), 0);
 
     return {
       totalRoutes,
@@ -59,11 +59,11 @@ export default function AccountantReportsPage() {
 
   const reportData = useMemo(
     () => reports.map((route) => ({
-      name: `${route.From} → ${route.To}`,
+      name: `${route.from} → ${route.to}`,
       deliveries: route.orders.length,
-      products: route.orders.reduce((sum, order) => sum + order.products.reduce((count, prod) => count + prod.Quantity, 0), 0),
-      distance: route.Distance,
-      cost: Number(route.TotalCost ?? 0),
+      products: route.orders.reduce((sum, order) => sum + order.products.reduce((count, prod) => count + prod.quantity, 0), 0),
+      distance: route.distance,
+      cost: Number(route.totalCost ?? 0),
     })),
     [reports]
   );
@@ -71,7 +71,7 @@ export default function AccountantReportsPage() {
   const statusData = useMemo(() => {
     const counts: Record<string, number> = {};
     reports.forEach((route) => {
-      counts[route.Status] = (counts[route.Status] ?? 0) + 1;
+      counts[route.status] = (counts[route.status] ?? 0) + 1;
     });
 
     return Object.entries(counts).map(([status, count]) => ({

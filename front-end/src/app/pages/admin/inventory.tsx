@@ -8,13 +8,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../../components/ui/dialog";
 import { Edit, Trash2, Plus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { adminApi } from "../../api/api";
-import type { ProductDto, StockDto } from "../../api/api";
+import { adminApi } from "../../../api";
+import type { ProductDto, StockDto } from "../../../api";
 
 export default function AdminInventoryPage() {
   const [products, setProducts] = useState<ProductDto[]>([]);
   const [inventory, setInventory] = useState<StockDto[]>([]);
-  const [warehouses, setWarehouses] = useState<string[]>([]);
+  const [warehouses, setWarehouses] = useState<{ id: number; name: string }[]>([]);
   const [selectedWarehouse, setSelectedWarehouse] = useState<string>("");
   const [editingStock, setEditingStock] = useState<StockDto | null>(null);
   const [editingProduct, setEditingProduct] = useState<ProductDto | null>(null);
@@ -31,18 +31,18 @@ export default function AdminInventoryPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [productsData, inventoryData] = await Promise.all([
+      const [productsData, inventoryData, warehousesData] = await Promise.all([
         adminApi.getProducts(),
-        adminApi.getInventory()
+        adminApi.getInventory(),
+        adminApi.getWarehouses()
       ]);
       setProducts(productsData);
       setInventory(inventoryData);
+      setWarehouses(warehousesData.map(w => ({ id: w.id, name: w.name })));
 
-      // Extract unique warehouse names
-      const warehouseNames = [...new Set(inventoryData.map(item => item.warehouseName))];
-      setWarehouses(warehouseNames);
-      if (warehouseNames.length > 0 && !selectedWarehouse) {
-        setSelectedWarehouse(warehouseNames[0]);
+      // Set default selected warehouse
+      if (warehousesData.length > 0 && !selectedWarehouse) {
+        setSelectedWarehouse(warehousesData[0].name);
       }
     } catch (error) {
       toast.error("Помилка завантаження даних");
@@ -65,9 +65,14 @@ export default function AdminInventoryPage() {
   const [stockForm, setStockForm] = useState({
     productId: "",
     quantity: "",
+    unit: "шт",
+    shelf: "A1",
   });
 
-  const warehouseStock = inventory.filter((s) => s.warehouseName === selectedWarehouse);
+  const selectedWarehouseObj = warehouses.find(w => w.name === selectedWarehouse);
+  const warehouseStock = selectedWarehouseObj 
+    ? inventory.filter((s) => s.warehouseId === selectedWarehouseObj.id)
+    : [];
 
   const getProductById = (id: number) => products.find((p) => p.id === id);
 
@@ -90,6 +95,8 @@ export default function AdminInventoryPage() {
     setStockForm({
       productId: stockItem.productId.toString(),
       quantity: stockItem.quantity.toString(),
+      unit: stockItem.unit,
+      shelf: stockItem.shelf,
     });
     setIsStockDialogOpen(true);
   };
@@ -100,25 +107,51 @@ export default function AdminInventoryPage() {
       return;
     }
 
+    const productId = parseInt(stockForm.productId);
+    const quantity = parseInt(stockForm.quantity);
+
+    if (isNaN(productId) || productId <= 0) {
+      toast.error("Оберіть коректний товар");
+      return;
+    }
+
+    if (isNaN(quantity) || quantity < 0) {
+      toast.error("Введіть коректну кількість");
+      return;
+    }
+
     try {
       setSaving(true);
       if (editingStock) {
         // Update existing stock
         await adminApi.updateStock(editingStock.id, {
-          quantity: parseInt(stockForm.quantity)
+          quantity,
+          unit: stockForm.unit,
+          shelf: stockForm.shelf,
         });
         toast.success("Залишок оновлено");
       } else {
-        // This would require a new endpoint for adding stock to a warehouse
-        // For now, we'll show an error
-        toast.error("Додавання нових залишків поки не підтримується");
-        return;
+        // Create new stock
+        const warehouse = warehouses.find(w => w.name === selectedWarehouse);
+        if (!warehouse) {
+          toast.error("Не вдалося визначити ID складу");
+          return;
+        }
+
+        await adminApi.createStock({
+          warehouseId: warehouse.id,
+          productId,
+          quantity,
+          unit: stockForm.unit,
+          shelf: stockForm.shelf,
+        });
+        toast.success("Залишок додано");
       }
 
       await loadData(); // Reload data
       setIsStockDialogOpen(false);
       setEditingStock(null);
-      setStockForm({ productId: "", quantity: "" });
+      setStockForm({ productId: "", quantity: "", unit: "шт", shelf: "A1" });
     } catch (error) {
       toast.error("Помилка збереження залишку");
       console.error(error);
@@ -194,7 +227,7 @@ export default function AdminInventoryPage() {
 
   const openAddStockDialog = () => {
     setEditingStock(null);
-    setStockForm({ productId: "", quantity: "" });
+    setStockForm({ productId: "", quantity: "", unit: "шт", shelf: "A1" });
     setIsStockDialogOpen(true);
   };
 
@@ -217,9 +250,10 @@ export default function AdminInventoryPage() {
           <span className="ml-2">Завантаження даних...</span>
         </div>
       ) : (
+        <>
 
-      {/* Управління товарами */}
-      <Card>
+          {/* Управління товарами */}
+          <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
@@ -354,8 +388,8 @@ export default function AdminInventoryPage() {
                 </SelectTrigger>
                 <SelectContent>
                   {warehouses.map((warehouse) => (
-                    <SelectItem key={warehouse} value={warehouse}>
-                      {warehouse}
+                    <SelectItem key={warehouse.id} value={warehouse.name}>
+                      {warehouse.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -381,7 +415,7 @@ export default function AdminInventoryPage() {
                         </SelectTrigger>
                         <SelectContent>
                           {products.map((product) => (
-                            <SelectItem key={product.id} value={product.id}>
+                            <SelectItem key={product.id} value={product.id.toString()}>
                               {product.name}
                             </SelectItem>
                           ))}
@@ -396,6 +430,24 @@ export default function AdminInventoryPage() {
                         onChange={(e) => setStockForm({ ...stockForm, quantity: e.target.value })}
                         placeholder="100"
                       />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Одиниця виміру</Label>
+                        <Input
+                          value={stockForm.unit}
+                          onChange={(e) => setStockForm({ ...stockForm, unit: e.target.value })}
+                          placeholder="шт"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Полиця</Label>
+                        <Input
+                          value={stockForm.shelf}
+                          onChange={(e) => setStockForm({ ...stockForm, shelf: e.target.value })}
+                          placeholder="A1"
+                        />
+                      </div>
                     </div>
                     <Button onClick={handleSaveStock} className="w-full" disabled={saving}>
                       {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
@@ -449,7 +501,8 @@ export default function AdminInventoryPage() {
           </Table>
         </CardContent>
       </Card>
+    </>
+      )}
     </div>
-    )}
   );
 }

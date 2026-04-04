@@ -94,6 +94,28 @@ public class WarehouseRepository
 		await _db.SaveChangesAsync();
 		return new WarehouseDto(w.Id, w.Name, w.Address, w.Lat, w.Lng, w.Active);
 	}
+
+	public async Task<bool> UpdateAsync(int id, UpdateWarehouseDto dto)
+	{
+		var w = await _db.Warehouses.FindAsync(id);
+		if (w == null) return false;
+		w.Name = dto.Name;
+		w.Address = dto.Address;
+		w.Lat = dto.Lat;
+		w.Lng = dto.Lng;
+		w.Active = dto.Active;
+		await _db.SaveChangesAsync();
+		return true;
+	}
+
+	public async Task<bool> DeleteAsync(int id)
+	{
+		var w = await _db.Warehouses.FindAsync(id);
+		if (w == null) return false;
+		w.Active = false;
+		await _db.SaveChangesAsync();
+		return true;
+	}
 }
 
 public class ProductRepository
@@ -169,6 +191,23 @@ public class WarehouseStockRepository
 				s.Quantity <= 0 ? "out-of-stock" : s.Quantity < 20 ? "low-stock" : "in-stock",
 				s.ExpiryDate, s.LastUpdated
 			)).ToListAsync();
+	}
+
+	public async Task<StockDto?> CreateAsync(int warehouseId, int productId, double quantity, string unit = "шт", string shelf = "A1")
+	{
+		var s = new WarehouseStock
+		{
+			WarehouseId = warehouseId,
+			ProductId = productId,
+			Quantity = quantity,
+			Unit = unit,
+			Shelf = shelf,
+			LastUpdated = DateTime.UtcNow
+		};
+		_db.WarehouseStocks.Add(s);
+		await _db.SaveChangesAsync();
+		return await GetByWarehouseAsync(warehouseId)
+			.ContinueWith(t => t.Result.FirstOrDefault(x => x.id == s.Id));
 	}
 
 	public async Task<bool> UpdateAsync(int id, UpdateStockDto dto)

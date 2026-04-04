@@ -290,7 +290,11 @@ export const adminApi = {
 
     // Warehouses
     getWarehouses: () => get<WarehouseDto[]>("/admin/warehouses"),
-    createWarehouse: (data: object) => post<WarehouseDto>("/admin/warehouses", data),
+    createWarehouse: (data: { name: string; address: string; lat: number; lng: number }) =>
+        post<WarehouseDto>("/admin/warehouses", data),
+    updateWarehouse: (id: number, data: { name: string; address: string; lat: number; lng: number; active: boolean }) =>
+        put<void>(`/admin/warehouses/${id}`, data),
+    deleteWarehouse: (id: number) => del<void>(`/admin/warehouses/${id}`),
 
     // Products
     getProducts: () => get<ProductDto[]>("/admin/products"),
@@ -300,6 +304,8 @@ export const adminApi = {
 
     // Inventory
     getInventory: () => get<StockDto[]>("/admin/inventory"),
+    createStock: (data: { warehouseId: number; productId: number; quantity: number; unit: string; shelf: string }) =>
+        post<StockDto>("/admin/inventory", data),
     updateStock: (id: number, data: object) => put<void>(`/admin/inventory/${id}`, data),
 
     // Audit

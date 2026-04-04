@@ -50,6 +50,10 @@ public record UpdateUserDto(
 // Warehouses
 public record WarehouseDto(int Id, string Name, string Address, double Lat, double Lng, bool Active);
 
+public record CreateWarehouseDto(string Name, string Address, double Lat, double Lng);
+
+public record UpdateWarehouseDto(string Name, string Address, double Lat, double Lng, bool Active);
+
 // Products
 public record ProductDto(
     int Id, string Name, string Type,
@@ -71,6 +75,8 @@ public record StockDto(
 );
 
 public record UpdateStockDto(double Quantity, string Unit, string Shelf, DateTime? ExpiryDate);
+
+public record CreateStockDto(int WarehouseId, int ProductId, double Quantity, string Unit, string Shelf);
 
 // Vehicles
 public record VehicleDto(
