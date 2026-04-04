@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -6,101 +6,92 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Badge } from "../../components/ui/badge";
 import { ArrowDownToLine, Check, Package, Truck } from "lucide-react";
 import { toast } from "sonner";
+import { authApi, warehouseApi, type DeliveryRequestDto } from "../../../api";
 
-interface IncomingDelivery {
-  id: string;
-  deliveryNumber: string;
-  supplier: string;
-  products: IncomingProduct[];
-  arrivalTime: string;
-  status: "pending" | "processing" | "completed";
+interface ReceivingRequest extends DeliveryRequestDto {
+  products: (DeliveryRequestDto["products"][number] & { receivedQuantity: number })[];
 }
-
-interface IncomingProduct {
-  id: string;
-  name: string;
-  expectedQuantity: number;
-  receivedQuantity: number;
-  unit: string;
-  shelf: string;
-}
-
-const incomingDeliveries: IncomingDelivery[] = [
-  {
-    id: "1",
-    deliveryNumber: "ПН-2026-0401-001",
-    supplier: "Молокозавод №1",
-    arrivalTime: "14:30",
-    status: "pending",
-    products: [
-      { id: "1", name: "Молоко 2.5%", expectedQuantity: 120, receivedQuantity: 0, unit: "л", shelf: "A-12" },
-      { id: "2", name: "Кефір", expectedQuantity: 80, receivedQuantity: 0, unit: "л", shelf: "A-13" },
-      { id: "3", name: "Сметана", expectedQuantity: 50, receivedQuantity: 0, unit: "кг", shelf: "A-14" },
-    ],
-  },
-  {
-    id: "2",
-    deliveryNumber: "ПН-2026-0401-002",
-    supplier: "Хлібокомбінат",
-    arrivalTime: "15:00",
-    status: "pending",
-    products: [
-      { id: "4", name: "Хліб білий", expectedQuantity: 200, receivedQuantity: 0, unit: "шт", shelf: "B-05" },
-      { id: "5", name: "Батон", expectedQuantity: 150, receivedQuantity: 0, unit: "шт", shelf: "B-06" },
-    ],
-  },
-];
 
 export default function WarehouseReceivingPage() {
-  const [deliveries, setDeliveries] = useState(incomingDeliveries);
-  const [expandedDelivery, setExpandedDelivery] = useState<string | null>(null);
+  const [requests, setRequests] = useState<ReceivingRequest[]>([]);
+  const [expandedRequest, setExpandedRequest] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleReceiveProduct = (deliveryId: string, productId: string, quantity: number) => {
-    setDeliveries(prev => prev.map(delivery => {
-      if (delivery.id === deliveryId) {
-        return {
-          ...delivery,
-          products: delivery.products.map(product => {
-            if (product.id === productId) {
-              return { ...product, receivedQuantity: quantity };
-            }
-            return product;
-          }),
-        };
+  const warehouseIds = authApi.getWarehouseIds();
+  const warehouseId = warehouseIds[0] ?? 1;
+
+  useEffect(() => {
+    const loadRequests = async () => {
+      try {
+        setLoading(true);
+        const data = await warehouseApi.getRequests(warehouseId);
+        setRequests(data.map((req) => ({
+          ...req,
+          products: req.products.map((product) => ({ ...product, receivedQuantity: 0 })),
+        })));
+      } catch (err) {
+        setError((err as Error)?.message || "Не вдалося завантажити запити");
+      } finally {
+        setLoading(false);
       }
-      return delivery;
+    };
+
+    void loadRequests();
+  }, [warehouseId]);
+
+  const handleReceiveProduct = (requestId: number, productId: number, quantity: number) => {
+    setRequests((prev) => prev.map((request) => {
+      if (request.id !== requestId) return request;
+      return {
+        ...request,
+        products: request.products.map((product) =>
+          product.productId === productId ? { ...product, receivedQuantity: quantity } : product
+        ),
+      };
     }));
   };
 
-  const handleCompleteDelivery = (deliveryId: string) => {
-    const delivery = deliveries.find(d => d.id === deliveryId);
-    if (!delivery) return;
+  const handleCompleteRequest = async (requestId: number) => {
+    const request = requests.find((item) => item.id === requestId);
+    if (!request) return;
 
-    const allReceived = delivery.products.every(p => p.receivedQuantity > 0);
+    const allReceived = request.products.every((product) => product.receivedQuantity > 0);
     if (!allReceived) {
       toast.error("Не всі товари прийнято");
       return;
     }
 
-    setDeliveries(prev => prev.map(d => 
-      d.id === deliveryId ? { ...d, status: "completed" as const } : d
-    ));
-    toast.success("Приймання завершено, товари додано на баланс");
+    try {
+      for (const product of request.products) {
+        await warehouseApi.createTransaction({
+          type: "receiving",
+          warehouseId,
+          productId: product.productId,
+          quantity: product.receivedQuantity,
+          notes: `Прийом з запиту ${request.id}`,
+        });
+      }
+
+      setRequests((prev) => prev.map((item) =>
+        item.id === requestId ? { ...item, status: "completed", products: item.products } : item
+      ));
+      toast.success("Приймання завершено, товари додано на баланс");
+    } catch (err) {
+      toast.error((err as Error)?.message || "Помилка під час приймання");
+    }
   };
 
-  const pendingDeliveries = deliveries.filter(d => d.status === "pending").length;
-  const completedToday = deliveries.filter(d => d.status === "completed").length;
+  const pendingDeliveries = requests.filter((r) => r.status === "pending").length;
+  const completedToday = requests.filter((r) => r.status === "completed").length;
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold mb-2">Прийом товарів</h1>
-        <p className="text-muted-foreground">
-          Приймання товарів на баланс складу
-        </p>
+        <p className="text-muted-foreground">Приймання товарів на баланс складу</p>
       </div>
 
-      {/* Статистика */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>
           <CardContent className="p-6">
@@ -118,7 +109,7 @@ export default function WarehouseReceivingPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground mb-1">Прийнято сьогодні</p>
+                <p className="text-sm text-muted-foreground mb-1">Прийнято</p>
                 <p className="text-3xl font-bold">{completedToday}</p>
               </div>
               <Check className="h-10 w-10 text-green-600" />
@@ -130,10 +121,8 @@ export default function WarehouseReceivingPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground mb-1">Товарних позицій</p>
-                <p className="text-3xl font-bold">
-                  {deliveries.reduce((sum, d) => sum + d.products.length, 0)}
-                </p>
+                <p className="text-sm text-muted-foreground mb-1">Позицій в запитах</p>
+                <p className="text-3xl font-bold">{requests.reduce((sum, req) => sum + req.products.length, 0)}</p>
               </div>
               <Package className="h-10 w-10 text-orange-600" />
             </div>
@@ -141,111 +130,109 @@ export default function WarehouseReceivingPage() {
         </Card>
       </div>
 
-      {/* Список поставок */}
-      <div className="space-y-4">
-        {deliveries.map((delivery) => {
-          const isExpanded = expandedDelivery === delivery.id;
-          const allProductsReceived = delivery.products.every(p => p.receivedQuantity > 0);
-          
-          return (
-            <Card key={delivery.id} className={delivery.status === "completed" ? "opacity-60" : ""}>
-              <CardHeader>
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <CardTitle className="text-lg">
-                        {delivery.deliveryNumber}
-                      </CardTitle>
-                      <Badge variant={delivery.status === "completed" ? "default" : "outline"}>
-                        {delivery.status === "completed" ? "Завершено" : "Очікується"}
-                      </Badge>
+      {loading ? (
+        <div className="p-6 rounded-lg border border-muted bg-muted/50 text-center text-sm text-muted-foreground">Завантаження запитів...</div>
+      ) : error ? (
+        <div className="p-6 rounded-lg border border-destructive bg-destructive/10 text-center text-sm text-destructive">{error}</div>
+      ) : (
+        <div className="space-y-4">
+          {requests.map((request) => {
+            const isExpanded = expandedRequest === request.id;
+            const allProductsReceived = request.products.every((p) => p.receivedQuantity > 0);
+
+            return (
+              <Card key={request.id} className={request.status === "completed" ? "opacity-60" : ""}>
+                <CardHeader>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <CardTitle className="text-lg">Запит #{request.id}</CardTitle>
+                        <Badge variant={request.status === "completed" ? "default" : "outline"}>
+                          {request.status === "completed" ? "Завершено" : request.status}
+                        </Badge>
+                      </div>
+                      <CardDescription>
+                        Склад: {request.warehouseName} • Замовник: {request.requestedByName}
+                      </CardDescription>
                     </div>
-                    <CardDescription>
-                      Постачальник: {delivery.supplier} • Прибуття: {delivery.arrivalTime}
-                    </CardDescription>
+                    <Button
+                      variant="outline"
+                      onClick={() => setExpandedRequest(isExpanded ? null : request.id)}
+                    >
+                      {isExpanded ? "Згорнути" : "Прийняти товар"}
+                    </Button>
                   </div>
-                  <Button
-                    variant="outline"
-                    onClick={() => setExpandedDelivery(isExpanded ? null : delivery.id)}
-                  >
-                    {isExpanded ? "Згорнути" : "Прийняти товар"}
-                  </Button>
-                </div>
-              </CardHeader>
+                </CardHeader>
 
-              {isExpanded && (
-                <CardContent className="space-y-4">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Товар</TableHead>
-                        <TableHead className="hidden sm:table-cell">Очікується</TableHead>
-                        <TableHead>Прийнято</TableHead>
-                        <TableHead className="hidden md:table-cell">Стелаж</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {delivery.products.map((product) => (
-                        <TableRow key={product.id}>
-                          <TableCell className="font-medium">{product.name}</TableCell>
-                          <TableCell className="hidden sm:table-cell">
-                            {product.expectedQuantity} {product.unit}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Input
-                                type="number"
-                                value={product.receivedQuantity || ""}
-                                onChange={(e) => handleReceiveProduct(
-                                  delivery.id,
-                                  product.id,
-                                  parseInt(e.target.value) || 0
-                                )}
-                                className="w-24"
-                                placeholder="0"
-                                disabled={delivery.status === "completed"}
-                              />
-                              <span className="text-sm text-muted-foreground">{product.unit}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="hidden md:table-cell">
-                            <Badge variant="outline">{product.shelf}</Badge>
-                          </TableCell>
+                {isExpanded && (
+                  <CardContent className="space-y-4">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Товар</TableHead>
+                          <TableHead className="hidden sm:table-cell">Очікується</TableHead>
+                          <TableHead>Прийнято</TableHead>
+                          <TableHead className="hidden md:table-cell">Вага</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {request.products.map((product) => (
+                          <TableRow key={product.productId}>
+                            <TableCell className="font-medium">{product.productName || `#${product.productId}`}</TableCell>
+                            <TableCell className="hidden sm:table-cell">{product.quantity}</TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  type="number"
+                                  value={product.receivedQuantity || ""}
+                                  onChange={(e) => handleReceiveProduct(
+                                    request.id,
+                                    product.productId,
+                                    parseInt(e.target.value) || 0
+                                  )}
+                                  className="w-24"
+                                  placeholder="0"
+                                  disabled={request.status === "completed"}
+                                />
+                                <span className="text-sm text-muted-foreground">шт</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="hidden md:table-cell text-muted-foreground">{product.weight ?? "-"}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
 
-                  {delivery.status !== "completed" && (
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          // Заповнити всі очікувані значення
-                          delivery.products.forEach(product => {
-                            handleReceiveProduct(delivery.id, product.id, product.expectedQuantity);
-                          });
-                          toast.success("Заповнено очікувані значення");
-                        }}
-                      >
-                        Заповнити всі
-                      </Button>
-                      <Button
-                        onClick={() => handleCompleteDelivery(delivery.id)}
-                        disabled={!allProductsReceived}
-                        className="gap-2"
-                      >
-                        <ArrowDownToLine className="h-4 w-4" />
-                        Завершити приймання
-                      </Button>
-                    </div>
-                  )}
-                </CardContent>
-              )}
-            </Card>
-          );
-        })}
-      </div>
+                    {request.status !== "completed" && (
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            request.products.forEach((product) => {
+                              handleReceiveProduct(request.id, product.productId, product.quantity);
+                            });
+                            toast.success("Заповнено очікувані значення");
+                          }}
+                        >
+                          Заповнити всі
+                        </Button>
+                        <Button
+                          onClick={() => handleCompleteRequest(request.id)}
+                          disabled={!allProductsReceived}
+                          className="gap-2"
+                        >
+                          <ArrowDownToLine className="h-4 w-4" />
+                          Завершити приймання
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                )}
+              </Card>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
