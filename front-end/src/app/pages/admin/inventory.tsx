@@ -251,7 +251,6 @@ export default function AdminInventoryPage() {
         </div>
       ) : (
         <>
-
           {/* Управління товарами */}
           <Card>
         <CardHeader>
@@ -501,7 +500,7 @@ export default function AdminInventoryPage() {
           </Table>
         </CardContent>
       </Card>
-    </>
+        </>
       )}
     </div>
   );

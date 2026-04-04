@@ -8,8 +8,8 @@ import { Badge } from "../../components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../../components/ui/dialog";
 import { MapPin, Plus, Edit, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { adminApi } from "../../../api";
-import type { WarehouseDto } from "../../../api";
+import { adminApi } from "../../../api/api";
+import type { WarehouseDto } from "../../../api/api";
 
 export default function AdminNetworkPage() {
   const [warehouses, setWarehouses] = useState<WarehouseDto[]>([]);
@@ -252,15 +252,6 @@ export default function AdminNetworkPage() {
                               >
                                 <Edit className="h-4 w-4" />
                               </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleDeleteWarehouse(warehouse.id)}
-                                disabled={saving}
-                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
                             </div>
                           </TableCell>
                         </TableRow>
@@ -291,6 +282,7 @@ export default function AdminNetworkPage() {
           </div>
         </>
       )}
+
     </div>
   );
 }

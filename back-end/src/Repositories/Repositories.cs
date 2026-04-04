@@ -206,8 +206,7 @@ public class WarehouseStockRepository
 		};
 		_db.WarehouseStocks.Add(s);
 		await _db.SaveChangesAsync();
-		return await GetByWarehouseAsync(warehouseId)
-			.ContinueWith(t => t.Result.FirstOrDefault(x => x.id == s.Id));
+		return (await GetByWarehouseAsync(warehouseId)).FirstOrDefault(x => x.Id == s.Id);
 	}
 
 	public async Task<bool> UpdateAsync(int id, UpdateStockDto dto)

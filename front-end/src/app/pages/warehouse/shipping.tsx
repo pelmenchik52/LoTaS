@@ -118,6 +118,12 @@ export default function WarehouseShippingPage() {
   const pendingOrders = orders.filter(o => o.status === "pending").length;
   const completedToday = orders.filter(o => o.status === "completed").length;
 
+  const getOrderProgress = (order: ShippingOrder) => {
+    const totalProducts = order.products.length;
+    const loadedProducts = order.products.filter(p => p.loaded === p.quantity).length;
+    return (loadedProducts / totalProducts) * 100;
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -278,4 +284,3 @@ export default function WarehouseShippingPage() {
     </div>
   );
 }
-

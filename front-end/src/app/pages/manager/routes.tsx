@@ -1,23 +1,70 @@
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
+import { useState, useEffect, useMemo } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "../../components/ui/dialog";
+import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
-import { MapPin, Truck, DollarSign, Package, Loader2 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select";
+import { Checkbox } from "../../components/ui/checkbox";
+import {
+  MapPin,
+  Truck,
+  Loader2,
+  Package,
+  Clock,
+} from "lucide-react";
 import { toast } from "sonner";
-import { managerApi } from "../../../api";
-import type { RouteDto, DriverDto, VehicleDto } from "../../../api";
+import { managerApi, warehouseApi } from "../../../api";
+import type {
+  DriverDto,
+  VehicleDto,
+  DeliveryRequestDto,
+  WarehouseDto,
+} from "../../../api";
+import { MapComponent } from "../../components/map-component";
+
+/* ── component ───────────────────────────────────────────────────── */
 
 export default function ManagerRoutesPage() {
-  const [routes, setRoutes] = useState<RouteDto[]>([]);
+  const [warehouses, setWarehouses] = useState<WarehouseDto[]>([]);
   const [drivers, setDrivers] = useState<DriverDto[]>([]);
   const [vehicles, setVehicles] = useState<VehicleDto[]>([]);
+  const [requests, setRequests] = useState<DeliveryRequestDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [selectedRoute, setSelectedRoute] = useState<RouteDto | null>(null);
-  const [isRouteDetailsOpen, setIsRouteDetailsOpen] = useState(false);
+
+  // form state
+  const [selectedWarehouseId, setSelectedWarehouseId] = useState<string>("");
+  const [departureTime, setDepartureTime] = useState("08:00");
+  const [selectedDriverId, setSelectedDriverId] = useState<string>("");
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
+  const [selectedRequestIds, setSelectedRequestIds] = useState<Set<number>>(
+    new Set()
+  );
+
+  // detail dialog
+  const [detailRequest, setDetailRequest] =
+    useState<DeliveryRequestDto | null>(null);
+
+  /* ── data loading ──────────────────────────────────────────────── */
 
   useEffect(() => {
     loadData();
@@ -26,248 +73,379 @@ export default function ManagerRoutesPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [routesData, driversData, vehiclesData] = await Promise.all([
-        managerApi.getRoutes(),
-        managerApi.getDrivers(),
-        managerApi.getVehicles(),
-      ]);
-      setRoutes(routesData);
+      const [warehousesData, driversData, vehiclesData, requestsData] =
+        await Promise.all([
+          warehouseApi.getWarehouses(),
+          managerApi.getDrivers(),
+          managerApi.getVehicles(),
+          managerApi.getRequests(),
+        ]);
+      setWarehouses(warehousesData);
       setDrivers(driversData);
       setVehicles(vehiclesData);
-    } catch (error) {
+      setRequests(requestsData);
+    } catch {
       toast.error("Помилка завантаження даних");
-      console.error(error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleRouteStatusUpdate = async (routeId: number, status: string) => {
+  /* ── derived ───────────────────────────────────────────────────── */
+
+  const selectedWarehouse = warehouses.find(
+    (w) => w.id === Number(selectedWarehouseId)
+  );
+
+  const pendingRequests = requests.filter((r) => r.status === "pending");
+
+  const availableDrivers = drivers.filter((d) => d.active && !d.isBusy);
+  const availableVehicles = vehicles.filter((v) => v.active);
+
+  const mapPoints = useMemo(() => {
+    const pts: {
+      id: string;
+      name: string;
+      address: string;
+      lat: number;
+      lng: number;
+      priority: number;
+    }[] = [];
+
+    if (selectedWarehouse) {
+      pts.push({
+        id: `wh-${selectedWarehouse.id}`,
+        name: selectedWarehouse.name,
+        address: selectedWarehouse.address,
+        lat: selectedWarehouse.lat,
+        lng: selectedWarehouse.lng,
+        priority: 0,
+      });
+    }
+
+    return pts;
+  }, [selectedWarehouse]);
+
+  /* ── handlers ──────────────────────────────────────────────────── */
+
+  const handleToggleRequest = (id: number) => {
+    setSelectedRequestIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleCreateRoute = async () => {
+    if (!selectedWarehouse) {
+      toast.error("Оберіть склад відправлення");
+      return;
+    }
+    if (selectedRequestIds.size === 0) {
+      toast.error("Оберіть хоча б одну точку доставки");
+      return;
+    }
     try {
       setSaving(true);
-      await managerApi.updateRouteStatus(routeId, status);
+      const selected = pendingRequests.filter((r) =>
+        selectedRequestIds.has(r.id)
+      );
+      await managerApi.createRoute({
+        from: selectedWarehouse.name,
+        to: selected.map((r) => r.warehouseName).join(", "),
+        distance: 0,
+        estimatedTime: 0,
+        driverId: selectedDriverId ? Number(selectedDriverId) : undefined,
+        vehicleId: selectedVehicleId ? Number(selectedVehicleId) : undefined,
+        orders: [],
+      });
+      toast.success("Маршрут створено");
+      setSelectedRequestIds(new Set());
       await loadData();
-      toast.success("Статус маршруту оновлено");
-    } catch (error) {
-      toast.error("Помилка оновлення статусу");
-      console.error(error);
+    } catch {
+      toast.error("Помилка створення маршруту");
     } finally {
       setSaving(false);
     }
   };
 
-  const getDriverById = (id?: number) => drivers.find((d) => d.id === id);
-  const getVehicleById = (id?: number) => vehicles.find((v) => v.id === id);
+  /* ── render ────────────────────────────────────────────────────── */
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center py-24">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="ml-2">Завантаження...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold mb-2">Управління маршрутами</h1>
-        <p className="text-muted-foreground">Перегляд та управління маршрутами доставки</p>
+        <h1 className="text-3xl font-bold">Планування маршрутів</h1>
+        <p className="text-muted-foreground">
+          Інтелектуальна система розрахунку оптимальних маршрутів доставки
+        </p>
       </div>
 
-      {loading ? (
-        <div className="flex justify-center items-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin" />
-          <span className="ml-2">Завантаження маршрутів...</span>
-        </div>
-      ) : (
+      {/* Two-column layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-6">
+        {/* ── Left column ──────────────────────────────────────── */}
         <div className="space-y-6">
-          {/* Статистика */}
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Всього маршрутів</p>
-                    <p className="text-3xl font-bold">{routes.length}</p>
-                  </div>
-                  <MapPin className="h-10 w-10 text-blue-600" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Активних</p>
-                    <p className="text-3xl font-bold">{routes.filter(r => r.status === "active" || r.status === "in-progress").length}</p>
-                  </div>
-                  <Truck className="h-10 w-10 text-green-600" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Завершених</p>
-                    <p className="text-3xl font-bold">{routes.filter(r => r.status === "completed").length}</p>
-                  </div>
-                  <Package className="h-10 w-10 text-purple-600" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Загальна вартість</p>
-                    <p className="text-3xl font-bold">
-                      {routes.reduce((sum, r) => sum + (r.totalCost || 0), 0).toFixed(0)}₴
-                    </p>
-                  </div>
-                  <DollarSign className="h-10 w-10 text-orange-600" />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Список маршрутів */}
+          {/* Departure params */}
           <Card>
             <CardHeader>
-              <CardTitle>Маршрути</CardTitle>
-              <CardDescription>Список всіх маршрутів у системі</CardDescription>
+              <CardTitle>Параметри відправлення</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>Склад відправлення</Label>
+                <Select
+                  value={selectedWarehouseId}
+                  onValueChange={setSelectedWarehouseId}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Оберіть склад" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {warehouses
+                      .filter((w) => w.active)
+                      .map((w) => (
+                        <SelectItem key={w.id} value={String(w.id)}>
+                          {w.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                {selectedWarehouse && (
+                  <p className="text-sm text-muted-foreground">
+                    {selectedWarehouse.address}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label>Час відправлення</Label>
+                <Input
+                  type="time"
+                  value={departureTime}
+                  onChange={(e) => setDepartureTime(e.target.value)}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Driver & transport */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Водій та транспорт</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>Водій</Label>
+                <Select
+                  value={selectedDriverId}
+                  onValueChange={setSelectedDriverId}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Оберіть водія" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableDrivers.map((d) => (
+                      <SelectItem key={d.id} value={String(d.id)}>
+                        {d.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Транспорт (фура)</Label>
+                <Select
+                  value={selectedVehicleId}
+                  onValueChange={setSelectedVehicleId}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Оберіть транспорт" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableVehicles.map((v) => (
+                      <SelectItem key={v.id} value={String(v.id)}>
+                        {v.model} — {v.plateNumber}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Create route button */}
+          <Button
+            className="w-full"
+            size="lg"
+            disabled={saving}
+            onClick={handleCreateRoute}
+          >
+            {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Створити маршрут
+          </Button>
+        </div>
+
+        {/* ── Right column ─────────────────────────────────────── */}
+        <div className="space-y-6">
+          {/* Map */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MapPin className="h-5 w-5" />
+                Карта маршруту
+              </CardTitle>
+              <CardDescription>
+                {selectedWarehouse
+                  ? `Відправлення з: ${selectedWarehouse.name} о ${departureTime}`
+                  : "Оберіть склад відправлення для перегляду карти"}
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Маршрут</TableHead>
-                    <TableHead>Водій</TableHead>
-                    <TableHead>Транспорт</TableHead>
-                    <TableHead>Статус</TableHead>
-                    <TableHead>Відстань</TableHead>
-                    <TableHead>Вартість</TableHead>
-                    <TableHead>Дії</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {routes.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center text-muted-foreground">
-                        Немає маршрутів у системі
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    routes.map((route) => {
-                      const driver = getDriverById(route.driverId);
-                      const vehicle = getVehicleById(route.vehicleId);
-                      return (
-                        <TableRow key={route.id}>
-                          <TableCell className="font-medium">
-                            {route.from} → {route.to}
-                          </TableCell>
-                          <TableCell>{driver?.name || "—"}</TableCell>
-                          <TableCell>{vehicle?.model || "—"}</TableCell>
-                          <TableCell>
-                            <Badge variant={
-                              route.status === "completed" ? "default" :
-                              route.status === "active" || route.status === "in-progress" ? "outline" :
-                              "secondary"
-                            }>
-                              {route.status === "completed" ? "Завершено" :
-                               route.status === "active" || route.status === "in-progress" ? "Активний" :
-                               "Очікує"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>{route.distance} км</TableCell>
-                          <TableCell>{route.totalCost?.toFixed(0) || "—"}₴</TableCell>
-                          <TableCell>
-                            <div className="flex gap-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedRoute(route);
-                                  setIsRouteDetailsOpen(true);
-                                }}
-                              >
-                                Деталі
-                              </Button>
-                              {route.status !== "completed" && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleRouteStatusUpdate(route.id, "completed")}
-                                  disabled={saving}
-                                >
-                                  Завершити
-                                </Button>
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })
-                  )}
-                </TableBody>
-              </Table>
+              <div className="h-[360px] w-full rounded-lg overflow-hidden border">
+                <MapComponent
+                  points={mapPoints}
+                  center={
+                    selectedWarehouse
+                      ? [selectedWarehouse.lat, selectedWarehouse.lng]
+                      : [50.4501, 30.5234]
+                  }
+                  zoom={12}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Delivery points */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Package className="h-5 w-5" />
+                Точки доставки
+              </CardTitle>
+              <CardDescription>
+                Оберіть точки для включення в маршрут
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {pendingRequests.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                  <Package className="h-10 w-10 mb-2 opacity-30" />
+                  <p>Немає запитів на доставку</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {pendingRequests.map((req) => (
+                    <div
+                      key={req.id}
+                      className="flex items-start gap-3 border rounded-lg p-4"
+                    >
+                      <Checkbox
+                        checked={selectedRequestIds.has(req.id)}
+                        onCheckedChange={() => handleToggleRequest(req.id)}
+                        className="mt-1"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-semibold">
+                            {req.warehouseName}
+                          </p>
+                          <Badge
+                            variant="destructive"
+                            className="shrink-0"
+                          >
+                            Пріоритет: {req.urgency}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-0.5">
+                          Замовлення від {req.requestedByName}
+                        </p>
+                        <div className="flex items-center gap-3 mt-1.5 text-sm text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Package className="h-3.5 w-3.5" />
+                            {req.products.length} товарів
+                          </span>
+                          <button
+                            type="button"
+                            className="text-primary hover:underline"
+                            onClick={() => setDetailRequest(req)}
+                          >
+                            Деталі замовлення
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
-      )}
+      </div>
 
-      {/* Деталі маршруту */}
-      <Dialog open={isRouteDetailsOpen} onOpenChange={setIsRouteDetailsOpen}>
-        <DialogContent className="max-w-4xl">
+      {/* ── Request detail dialog ────────────────────────────────── */}
+      <Dialog
+        open={!!detailRequest}
+        onOpenChange={(open) => !open && setDetailRequest(null)}
+      >
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>Деталі маршруту</DialogTitle>
-            <DialogDescription>
-              {selectedRoute && `${selectedRoute.from} → ${selectedRoute.to}`}
-            </DialogDescription>
+            <DialogTitle>
+              Деталі замовлення #{detailRequest?.id}
+            </DialogTitle>
           </DialogHeader>
-          {selectedRoute && (
+          {detailRequest && (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Водій</Label>
-                  <p>{getDriverById(selectedRoute.driverId)?.name || "—"}</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-muted/50 rounded-lg p-3">
+                  <p className="text-xs text-muted-foreground">Склад</p>
+                  <p className="font-medium">{detailRequest.warehouseName}</p>
                 </div>
-                <div>
-                  <Label>Транспорт</Label>
-                  <p>{getVehicleById(selectedRoute.vehicleId)?.model || "—"}</p>
+                <div className="bg-muted/50 rounded-lg p-3">
+                  <p className="text-xs text-muted-foreground">Замовник</p>
+                  <p className="font-medium">
+                    {detailRequest.requestedByName}
+                  </p>
                 </div>
-                <div>
-                  <Label>Відстань</Label>
-                  <p>{selectedRoute.distance} км</p>
+                <div className="bg-muted/50 rounded-lg p-3">
+                  <p className="text-xs text-muted-foreground">Терміновість</p>
+                  <p className="font-medium">{detailRequest.urgency}/10</p>
                 </div>
-                <div>
-                  <Label>Вартість</Label>
-                  <p>{selectedRoute.totalCost?.toFixed(2) || "—"}₴</p>
+                <div className="bg-muted/50 rounded-lg p-3">
+                  <p className="text-xs text-muted-foreground">Товарів</p>
+                  <p className="font-medium">
+                    {detailRequest.products.length}
+                  </p>
                 </div>
               </div>
 
               <div>
-                <Label>Замовлення</Label>
-                <div className="mt-2 space-y-2">
-                  {selectedRoute.orders.map((order) => (
-                    <Card key={order.id}>
-                      <CardContent className="p-4">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <p className="font-medium">Замовлення #{order.id}</p>
-                            <p className="text-sm text-muted-foreground">
-                              Терміновість: {order.urgency}/10
-                            </p>
-                          </div>
-                          <Badge variant="outline">{order.status}</Badge>
-                        </div>
-                        <div className="mt-2">
-                          <p className="text-sm">Товари:</p>
-                          <ul className="text-sm text-muted-foreground ml-4">
-                            {order.products.map((product, idx) => (
-                              <li key={idx}>
-                                {product.productName || `Товар ${product.productId}`} - {product.quantity} од.
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      </CardContent>
-                    </Card>
+                <Label className="text-xs text-muted-foreground">
+                  Список товарів
+                </Label>
+                <div className="mt-2 space-y-2 max-h-60 overflow-y-auto">
+                  {detailRequest.products.map((p, idx) => (
+                    <div
+                      key={idx}
+                      className="flex justify-between items-center border rounded-lg p-3"
+                    >
+                      <span className="font-medium text-sm">
+                        {p.productName || `Товар ${p.productId}`}
+                      </span>
+                      <span className="text-sm text-muted-foreground">
+                        {p.quantity} од. · {p.weight} кг
+                      </span>
+                    </div>
                   ))}
                 </div>
               </div>
