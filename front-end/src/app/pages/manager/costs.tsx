@@ -60,8 +60,6 @@ export default function ManagerCostsPage() {
   // Розрахунки маршруту
   const distanceNum = Math.max(0, parseFloat(distance) || 0);
   const fuelPriceNum = Math.max(0, parseFloat(fuelPrice) || 0);
-  const distanceNum = parseFloat(distance) || 0;
-  const fuelPriceNum = parseFloat(fuelPrice) || 0;
   const cargoWeightNum = parseFloat(cargoWeight) || 0;
   const estimatedHours = distanceNum / AVERAGE_SPEED;
 

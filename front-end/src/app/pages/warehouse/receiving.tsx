@@ -41,12 +41,13 @@ export default function WarehouseReceivingPage() {
   }, [warehouseId]);
 
   const handleReceiveProduct = (requestId: number, productId: number, quantity: number) => {
+    const sanitizedQuantity = Math.max(0, quantity);
     setRequests((prev) => prev.map((request) => {
       if (request.id !== requestId) return request;
       return {
         ...request,
         products: request.products.map((product) =>
-          product.productId === productId ? { ...product, receivedQuantity: quantity } : product
+          product.productId === productId ? { ...product, receivedQuantity: sanitizedQuantity } : product
         ),
       };
     }));
@@ -184,6 +185,7 @@ export default function WarehouseReceivingPage() {
                               <div className="flex items-center gap-2">
                                 <Input
                                   type="number"
+                                  min={0}
                                   value={product.receivedQuantity || ""}
                                   onChange={(e) => handleReceiveProduct(
                                     request.id,
