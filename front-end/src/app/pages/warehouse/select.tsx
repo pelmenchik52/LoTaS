@@ -1,26 +1,32 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Warehouse, MapPin, Package, Check } from "lucide-react";
 import { useNavigate } from "react-router";
-
-interface WarehouseLocation {
-  id: string;
-  name: string;
-  address: string;
-  stockCount: number;
-  lastActivity: string;
-}
-
-const warehouses: WarehouseLocation[] = [
-  { id: "1", name: "Склад 1 (Центральний)", address: "вул. Промислова, 15, Київ", stockCount: 1247, lastActivity: "5 хв тому" },
-  { id: "2", name: "Склад 2 (Південний)", address: "вул. Складська, 42, Одеса", stockCount: 892, lastActivity: "2 год тому" },
-  { id: "3", name: "Склад 3 (Західний)", address: "вул. Логістична, 8, Львів", stockCount: 1056, lastActivity: "1 год тому" },
-];
+import { warehouseApi, type WarehouseDto } from "../../../api";
 
 export default function WarehouseSelectPage() {
+  const [warehouses, setWarehouses] = useState<WarehouseDto[]>([]);
   const [selectedWarehouse, setSelectedWarehouse] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const loadWarehouses = async () => {
+      try {
+        setLoading(true);
+        const data = await warehouseApi.getWarehouses();
+        setWarehouses(data);
+      } catch (err) {
+        setError((err as Error).message || "Помилка завантаження складів");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void loadWarehouses();
+  }, []);
 
   const handleSelectWarehouse = (id: string) => {
     setSelectedWarehouse(id);
@@ -40,40 +46,53 @@ export default function WarehouseSelectPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {warehouses.map((warehouse) => (
-          <Card
-            key={warehouse.id}
-            className={`cursor-pointer transition-all hover:shadow-lg ${
-              selectedWarehouse === warehouse.id ? "ring-2 ring-primary" : ""
-            }`}
-            onClick={() => handleSelectWarehouse(warehouse.id)}
-          >
-            <CardContent className="p-6">
-              <div className="flex items-start gap-4">
-                <div className="p-3 bg-primary/10 rounded-lg">
-                  <Warehouse className="h-8 w-8 text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-lg mb-2">{warehouse.name}</h3>
-                  <div className="flex items-start gap-2 mb-3">
-                    <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-                    <p className="text-sm text-muted-foreground">{warehouse.address}</p>
+        {loading ? (
+          <div className="col-span-full p-6 rounded-lg border border-muted bg-muted/50 text-center text-sm text-muted-foreground">
+            Завантаження складів...
+          </div>
+        ) : error ? (
+          <div className="col-span-full p-6 rounded-lg border border-destructive bg-destructive/10 text-center text-sm text-destructive">
+            {error}
+          </div>
+        ) : warehouses.length === 0 ? (
+          <div className="col-span-full p-6 rounded-lg border border-muted bg-muted/10 text-center text-sm text-muted-foreground">
+            Немає доступних складів.
+          </div>
+        ) : (
+          warehouses.map((warehouse) => (
+            <Card
+              key={warehouse.id}
+              className={`cursor-pointer transition-all hover:shadow-lg ${
+                selectedWarehouse === String(warehouse.id) ? "ring-2 ring-primary" : ""
+              }`}
+              onClick={() => handleSelectWarehouse(String(warehouse.id))}
+            >
+              <CardContent className="p-6">
+                <div className="flex items-start gap-4">
+                  <div className="p-3 bg-primary/10 rounded-lg">
+                    <Warehouse className="h-8 w-8 text-primary" />
                   </div>
-                  <div className="flex items-center justify-between pt-3 border-t">
-                    <div className="flex items-center gap-2 text-sm">
-                      <Package className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-semibold">{warehouse.stockCount}</span>
-                      <span className="text-muted-foreground">товарів</span>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-lg mb-2">{warehouse.name}</h3>
+                    <div className="flex items-start gap-2 mb-3">
+                      <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                      <p className="text-sm text-muted-foreground">{warehouse.address}</p>
                     </div>
-                    <span className="text-xs text-muted-foreground">
-                      {warehouse.lastActivity}
-                    </span>
+                    <div className="flex items-center justify-between pt-3 border-t">
+                      <div className="flex items-center gap-2 text-sm">
+                        <Package className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-semibold">{warehouse.active ? "Активний" : "Неактивний"}</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        ID {warehouse.id}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          ))
+        )}
       </div>
 
       <Card className="bg-primary/5 border-primary/20">

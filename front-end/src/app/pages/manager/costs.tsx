@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -6,53 +6,105 @@ import { Label } from "../../components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { Fuel, Clock, DollarSign, TrendingUp, Calculator as CalcIcon, User } from "lucide-react";
-import type { Vehicle, Driver } from "../../types";
-
-const mockVehicles: Vehicle[] = [
-  { id: "1", model: "Mercedes Actros", plateNumber: "AA 1234 BB", fuelConsumption: 28.5, power: 450, trailerId: "1", fuelType: "diesel", capacity: 20000, active: true },
-  { id: "2", model: "Volvo FH16", plateNumber: "AA 5678 BB", fuelConsumption: 30.0, power: 540, trailerId: "2", fuelType: "diesel", capacity: 18000, active: true },
-  { id: "3", model: "MAN TGX", plateNumber: "AA 9012 CC", fuelConsumption: 27.5, power: 500, trailerId: null, fuelType: "diesel", capacity: 19000, active: true },
-];
-
-const mockDrivers: Driver[] = [
-  { id: "1", name: "Дмитро Іваненко", phone: "+380 67 123 4567", license: "ABC123456", vehicleId: "1", hourlyRate: 150, workHoursPerDay: 8, workHoursThisWeek: 32, maxHoursPerWeek: 48, isBusy: false,  active: true },
-  { id: "2", name: "Андрій Мельник", phone: "+380 63 987 6543", license: "DEF789012", vehicleId: "2", hourlyRate: 160, workHoursPerDay: 8, workHoursThisWeek: 40, maxHoursPerWeek: 48, isBusy: false,  active: true },
-  { id: "3", name: "Василь Петров", phone: "+380 50 555 1234", license: "GHI345678", vehicleId: null, hourlyRate: 145, workHoursPerDay: 8, workHoursThisWeek: 24, maxHoursPerWeek: 48, isBusy: false,  active: true },
-];
+import { toast } from "sonner";
+import { managerApi, type DriverDto, type VehicleDto, type CostResultDto } from "../../../api";
 
 const AMORTIZATION_RATE = 5; // грн за км
+const AVERAGE_SPEED = 50; // км/год
 
 export default function ManagerCostsPage() {
-  // Калькулятор маршруту
+  const [vehicles, setVehicles] = useState<VehicleDto[]>([]);
+  const [drivers, setDrivers] = useState<DriverDto[]>([]);
   const [distance, setDistance] = useState<string>("200");
-  const [selectedVehicle, setSelectedVehicle] = useState<string>("1");
+  const [selectedVehicle, setSelectedVehicle] = useState<string>("");
   const [fuelPrice, setFuelPrice] = useState<string>("52");
-  const [selectedDriver, setSelectedDriver] = useState<string>("1");
+  const [selectedDriver, setSelectedDriver] = useState<string>("");
+  const [cargoWeight, setCargoWeight] = useState<string>("1000");
+  const [costResult, setCostResult] = useState<CostResultDto | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
-  // Калькулятор зарплатні
   const [salaryDistance, setSalaryDistance] = useState<string>("500");
-  const [salaryDriverId, setSalaryDriverId] = useState<string>("1");
+  const [salaryDriverId, setSalaryDriverId] = useState<string>("");
 
-  const vehicle = mockVehicles.find((v) => v.id === selectedVehicle);
-  const driver = mockDrivers.find((d) => d.id === selectedDriver);
-  const salaryDriver = mockDrivers.find((d) => d.id === salaryDriverId);
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [driversData, vehiclesData] = await Promise.all([
+          managerApi.getDrivers(),
+          managerApi.getVehicles(),
+        ]);
+        setDrivers(driversData);
+        setVehicles(vehiclesData);
+        if (!selectedDriver && driversData.length > 0) {
+          setSelectedDriver(String(driversData[0].id));
+        }
+        if (!selectedVehicle && vehiclesData.length > 0) {
+          setSelectedVehicle(String(vehiclesData[0].id));
+        }
+        if (!salaryDriverId && driversData.length > 0) {
+          setSalaryDriverId(String(driversData[0].id));
+        }
+      } catch (err) {
+        setFetchError((err as Error).message || "Не вдалося завантажити дані водіїв та транспорту");
+      }
+    };
+
+    void loadData();
+  }, []);
+
+  const selectedVehicleDto = vehicles.find((v) => String(v.id) === selectedVehicle);
+  const selectedDriverDto = drivers.find((d) => String(d.id) === selectedDriver);
+  const salaryDriver = drivers.find((d) => String(d.id) === salaryDriverId);
 
   // Розрахунки маршруту
   const distanceNum = Math.max(0, parseFloat(distance) || 0);
   const fuelPriceNum = Math.max(0, parseFloat(fuelPrice) || 0);
+  const distanceNum = parseFloat(distance) || 0;
+  const fuelPriceNum = parseFloat(fuelPrice) || 0;
+  const cargoWeightNum = parseFloat(cargoWeight) || 0;
+  const estimatedHours = distanceNum / AVERAGE_SPEED;
 
-  const fuelConsumption = vehicle ? (distanceNum / 100) * vehicle.fuelConsumption : 0;
-  const fuelCost = fuelConsumption * fuelPriceNum;
-  const avgSpeed = 50; // км/год
-  const travelTime = distanceNum / avgSpeed;
-  const driverCost = driver ? travelTime * driver.hourlyRate : 0;
+  const fuelConsumption = selectedVehicleDto ? (distanceNum / 100) * selectedVehicleDto.fuelConsumption : 0;
+  const travelTime = distanceNum / AVERAGE_SPEED;
+  const driverCost = selectedDriverDto ? travelTime * selectedDriverDto.hourlyRate : 0;
   const amortization = distanceNum * AMORTIZATION_RATE;
-  const totalCost = fuelCost + driverCost + amortization;
+  const totalCost = fuelConsumption * fuelPriceNum + driverCost + amortization;
 
-  // Розрахунок зарплатні водія
-  const salaryDistanceNum = Math.max(0, parseFloat(salaryDistance) || 0);
-  const salaryTravelTime = salaryDistanceNum / avgSpeed;
+  const salaryDistanceNum = parseFloat(salaryDistance) || 0;
+  const salaryTravelTime = salaryDistanceNum / AVERAGE_SPEED;
   const driverSalary = salaryDriver ? salaryTravelTime * salaryDriver.hourlyRate : 0;
+
+  const handleCalculateCosts = async () => {
+    if (!selectedVehicleDto || !selectedDriverDto) {
+      toast.error("Оберіть транспорт та водія");
+      return;
+    }
+
+    if (distanceNum <= 0 || fuelPriceNum <= 0) {
+      toast.error("Вкажіть коректну відстань та ціну палива");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const result = await managerApi.calculateCosts({
+        Distance: distanceNum,
+        FuelConsumption: selectedVehicleDto.fuelConsumption,
+        FuelPrice: fuelPriceNum,
+        HourlyRate: selectedDriverDto.hourlyRate,
+        EstimatedHours: estimatedHours,
+        CargoWeight: cargoWeightNum,
+        VehicleCapacity: selectedVehicleDto.capacity,
+      });
+      setCostResult(result);
+      toast.success("Розрахунок витрат виконано");
+    } catch (err) {
+      toast.error((err as Error).message || "Помилка розрахунку витрат");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -93,11 +145,11 @@ export default function ManagerCostsPage() {
                   <Label htmlFor="vehicle">Транспорт (фура)</Label>
                   <Select value={selectedVehicle} onValueChange={setSelectedVehicle}>
                     <SelectTrigger id="vehicle">
-                      <SelectValue />
+                      <SelectValue placeholder="Оберіть транспорт" />
                     </SelectTrigger>
                     <SelectContent>
-                      {mockVehicles.map((v) => (
-                        <SelectItem key={v.id} value={v.id}>
+                      {vehicles.map((v) => (
+                        <SelectItem key={v.id} value={String(v.id)}>
                           {v.model} - {v.fuelConsumption} л/100км
                         </SelectItem>
                       ))}
@@ -109,11 +161,11 @@ export default function ManagerCostsPage() {
                   <Label htmlFor="driver">Водій</Label>
                   <Select value={selectedDriver} onValueChange={setSelectedDriver}>
                     <SelectTrigger id="driver">
-                      <SelectValue />
+                      <SelectValue placeholder="Оберіть водія" />
                     </SelectTrigger>
                     <SelectContent>
-                      {mockDrivers.map((d) => (
-                        <SelectItem key={d.id} value={d.id}>
+                      {drivers.map((d) => (
+                        <SelectItem key={d.id} value={String(d.id)}>
                           {d.name} - {d.hourlyRate} грн/год
                         </SelectItem>
                       ))}
@@ -121,19 +173,30 @@ export default function ManagerCostsPage() {
                   </Select>
                 </div>
 
-                {vehicle && (
+                <div className="space-y-2">
+                  <Label htmlFor="cargoWeight">Вага вантажу (кг)</Label>
+                  <Input
+                    id="cargoWeight"
+                    type="number"
+                    value={cargoWeight}
+                    onChange={(e) => setCargoWeight(e.target.value)}
+                    placeholder="1000"
+                  />
+                </div>
+
+                {selectedVehicleDto && (
                   <div className="p-4 bg-muted rounded-lg space-y-2 text-sm">
                     <p>
-                      <span className="font-medium">Модель:</span> {vehicle.model}
+                      <span className="font-medium">Модель:</span> {selectedVehicleDto.model}
                     </p>
                     <p>
-                      <span className="font-medium">Номер:</span> {vehicle.plateNumber}
+                      <span className="font-medium">Номер:</span> {selectedVehicleDto.plateNumber}
                     </p>
                     <p>
-                      <span className="font-medium">Розхід палива:</span> {vehicle.fuelConsumption} л/100км
+                      <span className="font-medium">Розхід палива:</span> {selectedVehicleDto.fuelConsumption} л/100км
                     </p>
                     <p>
-                      <span className="font-medium">Потужність:</span> {vehicle.power} к.с.
+                      <span className="font-medium">Потужність:</span> {selectedVehicleDto.power} к.с.
                     </p>
                   </div>
                 )}
@@ -158,7 +221,7 @@ export default function ManagerCostsPage() {
                         <p className="text-xs text-muted-foreground">{fuelConsumption.toFixed(1)} л</p>
                       </div>
                     </div>
-                    <p className="font-semibold text-blue-600">{fuelCost.toFixed(2)} грн</p>
+                    <p className="font-semibold text-blue-600">{(fuelConsumption * fuelPriceNum).toFixed(2)} грн</p>
                   </div>
 
                   <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
@@ -204,10 +267,19 @@ export default function ManagerCostsPage() {
                   </div>
                 </div>
 
-                <div className="space-y-2 text-sm text-muted-foreground">
-                  <p>• Витрати на км: {distanceNum > 0 ? (totalCost / distanceNum).toFixed(2) : "0"} грн</p>
-                  <p>• Середня швидкість: {avgSpeed} км/год</p>
-                </div>
+                {costResult && (
+                  <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm text-primary">
+                    <p className="font-semibold">Результат з сервера:</p>
+                    <p>Паливні витрати: {costResult.fuelCost.toFixed(2)} грн</p>
+                    <p>Зарплата водія: {costResult.driverSalary.toFixed(2)} грн</p>
+                    <p>Загальна сума: {costResult.totalCost.toFixed(2)} грн</p>
+                    <p>Ефективність: {costResult.efficiencyPercent.toFixed(1)}%</p>
+                  </div>
+                )}
+
+                <Button onClick={handleCalculateCosts} disabled={isLoading} className="w-full">
+                  {isLoading ? "Розрахунок..." : "Розрахувати через сервер"}
+                </Button>
               </CardContent>
             </Card>
           </div>
@@ -229,8 +301,8 @@ export default function ManagerCostsPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {mockDrivers.map((d) => (
-                        <SelectItem key={d.id} value={d.id}>
+                      {drivers.map((d) => (
+                        <SelectItem key={d.id} value={String(d.id)}>
                           {d.name}
                         </SelectItem>
                       ))}
@@ -263,7 +335,7 @@ export default function ManagerCostsPage() {
                 <div className="p-4 bg-blue-50 rounded-lg space-y-2">
                   <p className="text-sm text-muted-foreground">Приблизний час в дорозі</p>
                   <p className="text-2xl font-bold text-blue-600">{salaryTravelTime.toFixed(1)} годин</p>
-                  <p className="text-xs text-muted-foreground">На основі середньої швидкості {avgSpeed} км/год</p>
+                  <p className="text-xs text-muted-foreground">На основі середньої швидкості {AVERAGE_SPEED} км/год</p>
                 </div>
               </CardContent>
             </Card>
