@@ -61,8 +61,8 @@ public class AdminController : ControllerBase
     {
         var ok = await _users.DeleteAsync(id);
         if (!ok) return NotFound();
-        await _audit.AddAsync(CurrentUserId, "Деактивація", "User", $"Деактивовано користувача id={id}", CurrentIp);
-        return Ok(new { message = "Деактивовано" });
+        await _audit.AddAsync(CurrentUserId, "Видалення", "User", $"Видалено користувача id={id}", CurrentIp);
+        return Ok(new { message = "Видалено" });
     }
 
     // Drivers

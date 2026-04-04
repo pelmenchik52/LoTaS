@@ -70,7 +70,9 @@ public class UserRepository
 	{
 		var user = await _db.Users.FindAsync(id);
 		if (user == null) return false;
-		user.Active = false;
+
+		_db.UserWarehouses.RemoveRange(_db.UserWarehouses.Where(uw => uw.UserId == id));
+		_db.Users.Remove(user);
 		await _db.SaveChangesAsync();
 		return true;
 	}
@@ -288,7 +290,17 @@ public class VehicleRepository
 	{
 		var v = await _db.Vehicles.FindAsync(id);
 		if (v == null) return false;
-		v.Active = false;
+
+		// Clear nullable references before hard deletion.
+		await _db.Drivers
+			.Where(d => d.VehicleId == id)
+			.ForEachAsync(d => d.VehicleId = null);
+
+		await _db.Routes
+			.Where(r => r.VehicleId == id)
+			.ForEachAsync(r => r.VehicleId = null);
+
+		_db.Vehicles.Remove(v);
 		await _db.SaveChangesAsync();
 		return true;
 	}

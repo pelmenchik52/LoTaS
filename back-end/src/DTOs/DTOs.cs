@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace LogisticsBackend.DTOs;
 
 // Auth
@@ -70,7 +72,13 @@ public record StockDto(
     DateTime? ExpiryDate, DateTime LastUpdated
 );
 
-public record UpdateStockDto(double Quantity, string Unit, string Shelf, DateTime? ExpiryDate);
+public record UpdateStockDto(
+    [property: Range(0.0, double.MaxValue, ErrorMessage = "Quantity must be 0 or greater.")]
+    double Quantity,
+    string Unit,
+    string Shelf,
+    DateTime? ExpiryDate
+);
 
 // Vehicles
 public record VehicleDto(
@@ -118,8 +126,15 @@ public record RouteDto(
 );
 
 public record CreateRouteDto(
-    string From, string To, double Distance, double EstimatedTime,
-    int? DriverId, int? VehicleId, List<CreateOrderDto> Orders
+    string From,
+    string To,
+    [property: Range(0.001, double.MaxValue, ErrorMessage = "Distance must be greater than 0.")]
+    double Distance,
+    [property: Range(0.0, double.MaxValue, ErrorMessage = "Estimated time must be 0 or greater.")]
+    double EstimatedTime,
+    int? DriverId,
+    int? VehicleId,
+    List<CreateOrderDto> Orders
 );
 
 public record UpdateRouteStatusDto(string Status);
@@ -176,12 +191,19 @@ public record AuditLogDto(
 
 // Costs calculation
 public record CostCalculationDto(
+    [property: Range(0.001, double.MaxValue, ErrorMessage = "Distance must be greater than 0.")]
     double Distance,
+    [property: Range(0.001, double.MaxValue, ErrorMessage = "Fuel consumption must be greater than 0.")]
     double FuelConsumption,
+    [property: Range(0.0, double.MaxValue, ErrorMessage = "Fuel price must be 0 or greater.")]
     double FuelPrice,
+    [property: Range(0.0, double.MaxValue, ErrorMessage = "Hourly rate must be 0 or greater.")]
     decimal HourlyRate,
+    [property: Range(0.0, double.MaxValue, ErrorMessage = "Estimated hours must be 0 or greater.")]
     double EstimatedHours,
+    [property: Range(0.0, double.MaxValue, ErrorMessage = "Cargo weight must be 0 or greater.")]
     double CargoWeight,
+    [property: Range(0.0, double.MaxValue, ErrorMessage = "Vehicle capacity must be 0 or greater.")]
     double VehicleCapacity
 );
 

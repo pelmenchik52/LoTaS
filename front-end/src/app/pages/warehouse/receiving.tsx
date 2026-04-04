@@ -56,13 +56,14 @@ export default function WarehouseReceivingPage() {
   const [expandedDelivery, setExpandedDelivery] = useState<string | null>(null);
 
   const handleReceiveProduct = (deliveryId: string, productId: string, quantity: number) => {
+    const clampedQuantity = Math.max(0, quantity);
     setDeliveries(prev => prev.map(delivery => {
       if (delivery.id === deliveryId) {
         return {
           ...delivery,
           products: delivery.products.map(product => {
             if (product.id === productId) {
-              return { ...product, receivedQuantity: quantity };
+              return { ...product, receivedQuantity: clampedQuantity };
             }
             return product;
           }),
@@ -195,6 +196,7 @@ export default function WarehouseReceivingPage() {
                             <div className="flex items-center gap-2">
                               <Input
                                 type="number"
+                                min={0}
                                 value={product.receivedQuantity || ""}
                                 onChange={(e) => handleReceiveProduct(
                                   delivery.id,

@@ -15,9 +15,9 @@ const mockVehicles: Vehicle[] = [
 ];
 
 const mockDrivers: Driver[] = [
-  { id: "1", name: "Дмитро Іваненко", phone: "+380 67 123 4567", license: "ABC123456", vehicleId: "1", hourlyRate: 150, workHoursPerDay: 8, workHoursThisWeek: 32, maxHoursPerWeek: 48, isBusy: false, tckStatus: "active", active: true },
-  { id: "2", name: "Андрій Мельник", phone: "+380 63 987 6543", license: "DEF789012", vehicleId: "2", hourlyRate: 160, workHoursPerDay: 8, workHoursThisWeek: 40, maxHoursPerWeek: 48, isBusy: false, tckStatus: "active", active: true },
-  { id: "3", name: "Василь Петров", phone: "+380 50 555 1234", license: "GHI345678", vehicleId: null, hourlyRate: 145, workHoursPerDay: 8, workHoursThisWeek: 24, maxHoursPerWeek: 48, isBusy: false, tckStatus: "active", active: true },
+  { id: "1", name: "Дмитро Іваненко", phone: "+380 67 123 4567", license: "ABC123456", vehicleId: "1", hourlyRate: 150, workHoursPerDay: 8, workHoursThisWeek: 32, maxHoursPerWeek: 48, isBusy: false,  active: true },
+  { id: "2", name: "Андрій Мельник", phone: "+380 63 987 6543", license: "DEF789012", vehicleId: "2", hourlyRate: 160, workHoursPerDay: 8, workHoursThisWeek: 40, maxHoursPerWeek: 48, isBusy: false,  active: true },
+  { id: "3", name: "Василь Петров", phone: "+380 50 555 1234", license: "GHI345678", vehicleId: null, hourlyRate: 145, workHoursPerDay: 8, workHoursThisWeek: 24, maxHoursPerWeek: 48, isBusy: false,  active: true },
 ];
 
 const AMORTIZATION_RATE = 5; // грн за км
@@ -38,8 +38,8 @@ export default function ManagerCostsPage() {
   const salaryDriver = mockDrivers.find((d) => d.id === salaryDriverId);
 
   // Розрахунки маршруту
-  const distanceNum = parseFloat(distance) || 0;
-  const fuelPriceNum = parseFloat(fuelPrice) || 0;
+  const distanceNum = Math.max(0, parseFloat(distance) || 0);
+  const fuelPriceNum = Math.max(0, parseFloat(fuelPrice) || 0);
 
   const fuelConsumption = vehicle ? (distanceNum / 100) * vehicle.fuelConsumption : 0;
   const fuelCost = fuelConsumption * fuelPriceNum;
@@ -50,7 +50,7 @@ export default function ManagerCostsPage() {
   const totalCost = fuelCost + driverCost + amortization;
 
   // Розрахунок зарплатні водія
-  const salaryDistanceNum = parseFloat(salaryDistance) || 0;
+  const salaryDistanceNum = Math.max(0, parseFloat(salaryDistance) || 0);
   const salaryTravelTime = salaryDistanceNum / avgSpeed;
   const driverSalary = salaryDriver ? salaryTravelTime * salaryDriver.hourlyRate : 0;
 
@@ -80,12 +80,12 @@ export default function ManagerCostsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="distance">Відстань (км)</Label>
-                    <Input id="distance" type="number" value={distance} onChange={(e) => setDistance(e.target.value)} placeholder="150" />
+                    <Input id="distance" type="number" min={0} value={distance} onChange={(e) => setDistance(e.target.value)} placeholder="150" />
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="fuelPrice">Ціна палива (грн/л)</Label>
-                    <Input id="fuelPrice" type="number" step="0.1" value={fuelPrice} onChange={(e) => setFuelPrice(e.target.value)} placeholder="52" />
+                    <Input id="fuelPrice" type="number" min={0} step="0.1" value={fuelPrice} onChange={(e) => setFuelPrice(e.target.value)} placeholder="52" />
                   </div>
                 </div>
 
@@ -257,7 +257,7 @@ export default function ManagerCostsPage() {
 
                 <div className="space-y-2">
                   <Label htmlFor="salaryDistance">Відстань маршруту (км)</Label>
-                  <Input id="salaryDistance" type="number" value={salaryDistance} onChange={(e) => setSalaryDistance(e.target.value)} placeholder="500" />
+                  <Input id="salaryDistance" type="number" min={0} value={salaryDistance} onChange={(e) => setSalaryDistance(e.target.value)} placeholder="500" />
                 </div>
 
                 <div className="p-4 bg-blue-50 rounded-lg space-y-2">
