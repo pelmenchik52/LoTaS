@@ -1,4 +1,24 @@
-﻿.vs/
+# .NET / Visual Studio
+.vs/
+[Bb]in/
+[Oo]bj/
+*.user
+*.suo
+*.cache
+
+# Node.js
 node_modules/
-package-lock.json
-.git/
+dist/
+build/
+
+# Docker
+.dockerignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Environment
+.env
+.env.local
