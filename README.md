@@ -1,8 +1,8 @@
 # LoTaS
 Very usefull app for managing transport systems
+Create very smart team 
 
 ## CI/CD
-
 This project uses GitHub Actions for continuous integration and deployment.
 
 ### CI Workflow
