@@ -17,18 +17,16 @@ public class ManagerController : ControllerBase
     private readonly DeliveryRequestRepository _requests;
     private readonly DriverRepository _drivers;
     private readonly VehicleRepository _vehicles;
-    private readonly ProductRepository _products;
     private readonly AuditLogRepository _audit;
 
     public ManagerController(
         RouteRepository routes, RouteService routeService,
         DeliveryRequestRepository requests, DriverRepository drivers,
-        VehicleRepository vehicles, ProductRepository products,
-        AuditLogRepository audit)
+        VehicleRepository vehicles, AuditLogRepository audit)
     {
         _routes = routes; _routeService = routeService;
         _requests = requests; _drivers = drivers;
-        _vehicles = vehicles; _products = products; _audit = audit;
+        _vehicles = vehicles; _audit = audit;
     }
 
     private int CurrentUserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -99,35 +97,5 @@ public class ManagerController : ControllerBase
     {
         var result = _routeService.CalculateCost(dto);
         return Ok(result);
-    }
-
-    // Products
-    [HttpGet("products")]
-    public async Task<IActionResult> GetProducts() => Ok(await _products.GetAllAsync());
-
-    [HttpPost("products")]
-    public async Task<IActionResult> CreateProduct([FromBody] CreateProductDto dto)
-    {
-        var result = await _products.CreateAsync(dto);
-        await _audit.AddAsync(CurrentUserId, "Створення", "Product", $"Створено товар {dto.Name}", CurrentIp);
-        return Ok(result);
-    }
-
-    [HttpPut("products/{id}")]
-    public async Task<IActionResult> UpdateProduct(int id, [FromBody] CreateProductDto dto)
-    {
-        var ok = await _products.UpdateAsync(id, dto);
-        if (!ok) return NotFound();
-        await _audit.AddAsync(CurrentUserId, "Редагування", "Product", $"Оновлено товар id={id}", CurrentIp);
-        return Ok(new { message = "Оновлено" });
-    }
-
-    [HttpDelete("products/{id}")]
-    public async Task<IActionResult> DeleteProduct(int id)
-    {
-        var ok = await _products.DeleteAsync(id);
-        if (!ok) return NotFound();
-        await _audit.AddAsync(CurrentUserId, "Деактивація", "Product", $"Деактивовано товар id={id}", CurrentIp);
-        return Ok(new { message = "Деактивовано" });
     }
 }

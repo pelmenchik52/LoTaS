@@ -197,3 +197,25 @@ public record CostResultDto(
     decimal TotalCost,
     double EfficiencyPercent
 );
+
+// Company Requests
+public record CompanyRequestDto(
+    int Id, string CompanyName, string ContactPerson,
+    string Phone, string Email, string DeliveryAddress,
+    double DeliveryLat, double DeliveryLng,
+    string Status, int Urgency, string? Notes,
+    int? ManagerId, string? ManagerName,
+    DateTime CreatedAt, List<CompanyRequestProductDto> Products
+);
+
+public record CreateCompanyRequestDto(
+    string CompanyName, string ContactPerson,
+    string Phone, string Email,
+    string DeliveryAddress, double DeliveryLat, double DeliveryLng,
+    List<CompanyRequestProductDto> Products,
+    string? Notes, int Urgency
+);
+
+public record CompanyRequestProductDto(int ProductId, string? ProductName, double Quantity, double Weight);
+
+public record UpdateCompanyRequestStatusDto(string Status, int? ManagerId);

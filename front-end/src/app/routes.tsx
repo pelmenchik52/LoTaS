@@ -12,14 +12,10 @@ import AdminInventoryPage from "./pages/admin/inventory";
 import ManagerRoutesPage from "./pages/manager/routes";
 import ManagerCostsPage from "./pages/manager/costs";
 import ManagerMonitoringPage from "./pages/manager/monitoring";
-<<<<<<< Updated upstream
-=======
 import ManagerCompanyRequestsPage from "./pages/manager/company-requests";
-import ManagerProductsPage from "./pages/manager/products";
 
 // Публічна сторінка
 import CompanyRequestPage from "./pages/company-request";
->>>>>>> Stashed changes
 
 // Комірник
 import WarehouseSelectPage from "./pages/warehouse/select";
@@ -37,11 +33,19 @@ import AccountantArchivePage from "./pages/accountant/archive";
 
 export const router = createBrowserRouter([
   {
+    path: "/",
+    Component: CompanyRequestPage,
+  },
+  {
     path: "/login",
     Component: LoginPage,
   },
   {
-    path: "/",
+    path: "/request",
+    Component: CompanyRequestPage,
+  },
+  {
+    path: "/app",
     Component: Layout,
     children: [
       // Адміністратор
@@ -54,11 +58,7 @@ export const router = createBrowserRouter([
       { path: "manager/routes", Component: ManagerRoutesPage },
       { path: "manager/costs", Component: ManagerCostsPage },
       { path: "manager/monitoring", Component: ManagerMonitoringPage },
-<<<<<<< Updated upstream
-=======
       { path: "manager/company-requests", Component: ManagerCompanyRequestsPage },
-      { path: "manager/products", Component: ManagerProductsPage },
->>>>>>> Stashed changes
       
       // Комірник
       { path: "warehouse/select", Component: WarehouseSelectPage },

@@ -334,3 +334,4 @@ D:\0\LoTaS\back-end\obj\Debug\net8.0\refint\back-end.dll
 D:\0\LoTaS\back-end\obj\Debug\net8.0\back-end.pdb
 D:\0\LoTaS\back-end\obj\Debug\net8.0\back-end.genruntimeconfig.cache
 D:\0\LoTaS\back-end\obj\Debug\net8.0\ref\back-end.dll
+D:\Хуйня\хакатон\BEST hacaton\LoTaS\back-end\bin\Debug\net8.0\package-lock.json

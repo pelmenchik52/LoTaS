@@ -24,6 +24,8 @@ public class AppDbContext : DbContext
     public DbSet<DeliveryRequestProduct> DeliveryRequestProducts => Set<DeliveryRequestProduct>();
     public DbSet<TransactionArchive> TransactionArchives => Set<TransactionArchive>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<CompanyRequest> CompanyRequests => Set<CompanyRequest>();
+    public DbSet<CompanyRequestProduct> CompanyRequestProducts => Set<CompanyRequestProduct>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -60,6 +62,12 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<User>()
             .HasIndex(u => u.Email)
             .IsUnique();
+
+        modelBuilder.Entity<CompanyRequest>()
+            .HasOne(cr => cr.Manager)
+            .WithMany()
+            .HasForeignKey(cr => cr.ManagerId)
+            .IsRequired(false);
 
         // Decimal precision
         modelBuilder.Entity<Driver>()

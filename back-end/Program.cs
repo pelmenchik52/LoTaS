@@ -65,6 +65,7 @@ builder.Services.AddScoped<TransactionArchiveRepository>();
 builder.Services.AddScoped<AuditLogRepository>();
 builder.Services.AddScoped<WarehouseRepository>();
 builder.Services.AddScoped<TrailerRepository>();
+builder.Services.AddScoped<CompanyRequestRepository>();
 
 // Services
 builder.Services.AddScoped<AuthService>();

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, Link } from "react-router";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -21,11 +21,11 @@ const warehouseOptions = [
 
 function redirectByRole(role: string, navigate: ReturnType<typeof useNavigate>) {
     switch (role) {
-        case "admin": navigate("/admin/users"); break;
-        case "manager": navigate("/manager/routes"); break;
-        case "warehouse": navigate("/warehouse/select"); break;
-        case "accountant": navigate("/accountant/reports"); break;
-        default: navigate("/");
+        case "admin": navigate("/app/admin/users"); break;
+        case "manager": navigate("/app/manager/routes"); break;
+        case "warehouse": navigate("/app/warehouse/select"); break;
+        case "accountant": navigate("/app/accountant/reports"); break;
+        default: navigate("/app");
     }
 }
 
@@ -174,6 +174,12 @@ export default function LoginPage() {
                         </Tabs>
                     </CardContent>
                 </Card>
+
+                <div className="mt-4 text-center">
+                    <Link to="/request" className="text-sm text-blue-600 hover:underline">
+                        Залишити запит на доставку від компанії →
+                    </Link>
+                </div>
             </div>
         </div>
     );

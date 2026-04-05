@@ -40,10 +40,10 @@ export default function CompanyRequestPage() {
 
     // Map picker
     const mapContainerRef = useRef<HTMLDivElement>(null);
-    const mapRef = useRef<any>(null);
-    const markerRef = useRef<any>(null);
+    const mapRef = useRef<L.Map | null>(null);
+    const markerRef = useRef<L.Marker | null>(null);
 
-    const handleMapClick = useCallback((e: any) => {
+    const handleMapClick = useCallback((e: L.LeafletMouseEvent) => {
         const { lat, lng } = e.latlng;
         setDeliveryLat(lat);
         setDeliveryLng(lng);

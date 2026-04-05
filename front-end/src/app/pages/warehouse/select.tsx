@@ -36,7 +36,7 @@ export default function WarehouseSelectPage() {
     setSelectedWarehouse(id);
     localStorage.setItem("selectedWarehouse", id);
     setTimeout(() => {
-      navigate(`/warehouse/stock/${id}`);
+      navigate(`/app/warehouse/stock/${id}`);
     }, 300);
   };
 

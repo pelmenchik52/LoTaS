@@ -330,14 +330,9 @@ export const managerApi = {
     getVehicles: () => get<VehicleDto[]>("/manager/vehicles"),
 
     calculateCosts: (data: object) => post<CostResultDto>("/manager/costs/calculate", data),
-
-    getProducts: () => get<ProductDto[]>("/manager/products"),
-    createProduct: (data: object) => post<ProductDto>("/manager/products", data),
-    updateProduct: (id: number, data: object) => put<void>(`/manager/products/${id}`, data),
-    deleteProduct: (id: number) => del<void>(`/manager/products/${id}`),
 };
 
-// ─── Warehouse API ───────────────────────────────────────────────────────────
+// ─── Warehouse API ────────────────────────────────────────────────────────────
 
 export const warehouseApi = {
     getWarehouses: () => get<WarehouseDto[]>("/warehouse"),
@@ -366,4 +361,40 @@ export const accountantApi = {
     getReports: () => get<RouteDto[]>("/accountant/reports"),
     getCosts: () => get<object[]>("/accountant/costs"),
     getDiscrepancies: () => get<StockDto[]>("/accountant/discrepancies"),
+};
+
+// ─── Company Requests API ─────────────────────────────────────────────────────
+
+export interface CompanyRequestProductDto {
+    productId: number;
+    productName?: string;
+    quantity: number;
+    weight: number;
+}
+
+export interface CompanyRequestDto {
+    id: number;
+    companyName: string;
+    contactPerson: string;
+    phone: string;
+    email: string;
+    deliveryAddress: string;
+    deliveryLat: number;
+    deliveryLng: number;
+    status: string;
+    urgency: number;
+    notes?: string;
+    managerId?: number;
+    managerName?: string;
+    createdAt: string;
+    products: CompanyRequestProductDto[];
+}
+
+export const companyRequestApi = {
+    getProducts: () => get<ProductDto[]>("/company-requests/products"),
+    create: (data: object) => post<CompanyRequestDto>("/company-requests", data),
+    getAll: () => get<CompanyRequestDto[]>("/company-requests"),
+    getById: (id: number) => get<CompanyRequestDto>(`/company-requests/${id}`),
+    updateStatus: (id: number, status: string, managerId?: number) =>
+        put<void>(`/company-requests/${id}/status`, { status, managerId }),
 };
