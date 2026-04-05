@@ -36,7 +36,6 @@ import { managerApi, warehouseApi, companyRequestApi } from "../../../api";
 import type {
   DriverDto,
   VehicleDto,
-  DeliveryRequestDto,
   WarehouseDto,
   CompanyRequestDto,
 } from "../../../api";
@@ -48,7 +47,6 @@ export default function ManagerRoutesPage() {
   const [warehouses, setWarehouses] = useState<WarehouseDto[]>([]);
   const [drivers, setDrivers] = useState<DriverDto[]>([]);
   const [vehicles, setVehicles] = useState<VehicleDto[]>([]);
-  const [requests, setRequests] = useState<DeliveryRequestDto[]>([]);
   const [companyRequests, setCompanyRequests] = useState<CompanyRequestDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -58,16 +56,11 @@ export default function ManagerRoutesPage() {
   const [departureTime, setDepartureTime] = useState("08:00");
   const [selectedDriverId, setSelectedDriverId] = useState<string>("");
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
-  const [selectedRequestIds, setSelectedRequestIds] = useState<Set<number>>(
-    new Set()
-  );
   const [selectedCompanyIds, setSelectedCompanyIds] = useState<Set<number>>(
     new Set()
   );
 
   // detail dialog
-  const [detailRequest, setDetailRequest] =
-    useState<DeliveryRequestDto | null>(null);
   const [detailCompanyRequest, setDetailCompanyRequest] =
     useState<CompanyRequestDto | null>(null);
 
@@ -80,18 +73,16 @@ export default function ManagerRoutesPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [warehousesData, driversData, vehiclesData, requestsData, companyData] =
+      const [warehousesData, driversData, vehiclesData, companyData] =
         await Promise.all([
           warehouseApi.getWarehouses(),
           managerApi.getDrivers(),
           managerApi.getVehicles(),
-          managerApi.getRequests(),
           companyRequestApi.getAll(),
         ]);
       setWarehouses(warehousesData);
       setDrivers(driversData);
       setVehicles(vehiclesData);
-      setRequests(requestsData);
       setCompanyRequests(companyData);
     } catch {
       toast.error("Помилка завантаження даних");
@@ -106,9 +97,8 @@ export default function ManagerRoutesPage() {
     (w) => w.id === Number(selectedWarehouseId)
   );
 
-  const pendingRequests = requests.filter((r) => r.status === "pending");
   const pendingCompanyRequests = companyRequests.filter(
-    (r) => r.status === "new" || r.status === "approved" || r.status === "processing"
+    (r) => r.status === "new" || r.status === "approved"
   );
 
   const availableDrivers = drivers.filter((d) => d.active && !d.isBusy);
@@ -135,22 +125,6 @@ export default function ManagerRoutesPage() {
             });
         }
 
-        pendingRequests
-            .filter((r) => selectedRequestIds.has(r.id))
-            .forEach((r) => {
-                const wh = warehouses.find((w) => w.name === r.warehouseName);
-                if (wh) {
-                    pts.push({
-                        id: `req-${r.id}`,
-                        name: r.warehouseName,
-                        address: wh.address,
-                        lat: wh.lat,
-                        lng: wh.lng,
-                        priority: r.urgency,
-                    });
-                }
-            });
-
         pendingCompanyRequests
             .filter((r) => selectedCompanyIds.has(r.id))
             .forEach((r) => {
@@ -167,18 +141,9 @@ export default function ManagerRoutesPage() {
             });
 
         return pts;
-    }, [selectedWarehouse, selectedRequestIds, selectedCompanyIds, pendingRequests, pendingCompanyRequests, warehouses]);
+    }, [selectedWarehouse, selectedCompanyIds, pendingCompanyRequests]);
 
   /* ── handlers ──────────────────────────────────────────────────── */
-
-  const handleToggleRequest = (id: number) => {
-    setSelectedRequestIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
 
   const handleToggleCompanyRequest = (id: number) => {
     setSelectedCompanyIds((prev) => {
@@ -202,22 +167,18 @@ export default function ManagerRoutesPage() {
       toast.error("Оберіть транспорт");
       return;
     }
-    if (selectedRequestIds.size === 0 && selectedCompanyIds.size === 0) {
+    if (selectedCompanyIds.size === 0) {
       toast.error("Оберіть хоча б одну точку доставки");
       return;
     }
     try {
       setSaving(true);
-      const selected = pendingRequests.filter((r) =>
-        selectedRequestIds.has(r.id)
-      );
       const selectedCompany = pendingCompanyRequests.filter((r) =>
         selectedCompanyIds.has(r.id)
       );
-      const toNames = [
-        ...selected.map((r) => r.warehouseName),
-        ...selectedCompany.map((r) => `${r.companyName} (${r.deliveryAddress})`),
-      ].join(", ");
+      const toNames = selectedCompany
+        .map((r) => `${r.companyName} (${r.deliveryAddress})`)
+        .join(", ");
       await managerApi.createRoute({
         from: selectedWarehouse.name,
         to: toNames,
@@ -227,8 +188,11 @@ export default function ManagerRoutesPage() {
         vehicleId: selectedVehicleId ? Number(selectedVehicleId) : undefined,
         orders: [],
       });
+      // Mark selected company requests as "processing" so they don't reappear
+      await Promise.all(
+        selectedCompany.map((r) => companyRequestApi.updateStatus(r.id, "processing"))
+      );
       toast.success("Маршрут створено");
-      setSelectedRequestIds(new Set());
       setSelectedCompanyIds(new Set());
       await loadData();
     } catch {
@@ -406,7 +370,7 @@ export default function ManagerRoutesPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {pendingRequests.length === 0 && pendingCompanyRequests.length === 0 ? (
+              {pendingCompanyRequests.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
                   <Package className="h-10 w-10 mb-2 opacity-30" />
                   <p>Немає запитів на доставку</p>
@@ -460,114 +424,12 @@ export default function ManagerRoutesPage() {
                       </div>
                     </div>
                   ))}
-                  {pendingRequests.map((req) => (
-                    <div
-                      key={req.id}
-                      className="flex items-start gap-3 border rounded-lg p-4"
-                    >
-                      <Checkbox
-                        checked={selectedRequestIds.has(req.id)}
-                        onCheckedChange={() => handleToggleRequest(req.id)}
-                        className="mt-1"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="font-semibold">
-                            {req.warehouseName}
-                          </p>
-                          <Badge
-                            variant="destructive"
-                            className="shrink-0"
-                          >
-                            Пріоритет: {req.urgency}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground mt-0.5">
-                          Замовлення від {req.requestedByName}
-                        </p>
-                        <div className="flex items-center gap-3 mt-1.5 text-sm text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <Package className="h-3.5 w-3.5" />
-                            {req.products.length} товарів
-                          </span>
-                          <button
-                            type="button"
-                            className="text-primary hover:underline"
-                            onClick={() => setDetailRequest(req)}
-                          >
-                            Деталі замовлення
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
                 </div>
               )}
             </CardContent>
           </Card>
         </div>
       </div>
-
-      {/* ── Request detail dialog ────────────────────────────────── */}
-      <Dialog
-        open={!!detailRequest}
-        onOpenChange={(open) => !open && setDetailRequest(null)}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              Деталі замовлення #{detailRequest?.id}
-            </DialogTitle>
-          </DialogHeader>
-          {detailRequest && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-muted/50 rounded-lg p-3">
-                  <p className="text-xs text-muted-foreground">Склад</p>
-                  <p className="font-medium">{detailRequest.warehouseName}</p>
-                </div>
-                <div className="bg-muted/50 rounded-lg p-3">
-                  <p className="text-xs text-muted-foreground">Замовник</p>
-                  <p className="font-medium">
-                    {detailRequest.requestedByName}
-                  </p>
-                </div>
-                <div className="bg-muted/50 rounded-lg p-3">
-                  <p className="text-xs text-muted-foreground">Терміновість</p>
-                  <p className="font-medium">{detailRequest.urgency}/10</p>
-                </div>
-                <div className="bg-muted/50 rounded-lg p-3">
-                  <p className="text-xs text-muted-foreground">Товарів</p>
-                  <p className="font-medium">
-                    {detailRequest.products.length}
-                  </p>
-                </div>
-              </div>
-
-              <div>
-                <Label className="text-xs text-muted-foreground">
-                  Список товарів
-                </Label>
-                <div className="mt-2 space-y-2 max-h-60 overflow-y-auto">
-                  {detailRequest.products.map((p, idx) => (
-                    <div
-                      key={idx}
-                      className="flex justify-between items-center border rounded-lg p-3"
-                    >
-                      <span className="font-medium text-sm">
-                        {p.productName || `Товар ${p.productId}`}
-                      </span>
-                      <span className="text-sm text-muted-foreground">
-                        {p.quantity} од. · {p.weight} кг
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
 
       {/* ── Company request detail dialog ────────────────────────── */}
       <Dialog
