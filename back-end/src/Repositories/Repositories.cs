@@ -70,9 +70,7 @@ public class UserRepository
 	{
 		var user = await _db.Users.FindAsync(id);
 		if (user == null) return false;
-
-		_db.UserWarehouses.RemoveRange(_db.UserWarehouses.Where(uw => uw.UserId == id));
-		_db.Users.Remove(user);
+		user.Active = false;
 		await _db.SaveChangesAsync();
 		return true;
 	}
@@ -95,6 +93,28 @@ public class WarehouseRepository
 		_db.Warehouses.Add(w);
 		await _db.SaveChangesAsync();
 		return new WarehouseDto(w.Id, w.Name, w.Address, w.Lat, w.Lng, w.Active);
+	}
+
+	public async Task<bool> UpdateAsync(int id, UpdateWarehouseDto dto)
+	{
+		var w = await _db.Warehouses.FindAsync(id);
+		if (w == null) return false;
+		w.Name = dto.Name;
+		w.Address = dto.Address;
+		w.Lat = dto.Lat;
+		w.Lng = dto.Lng;
+		w.Active = dto.Active;
+		await _db.SaveChangesAsync();
+		return true;
+	}
+
+	public async Task<bool> DeleteAsync(int id)
+	{
+		var w = await _db.Warehouses.FindAsync(id);
+		if (w == null) return false;
+		w.Active = false;
+		await _db.SaveChangesAsync();
+		return true;
 	}
 }
 
@@ -171,6 +191,22 @@ public class WarehouseStockRepository
 				s.Quantity <= 0 ? "out-of-stock" : s.Quantity < 20 ? "low-stock" : "in-stock",
 				s.ExpiryDate, s.LastUpdated
 			)).ToListAsync();
+	}
+
+	public async Task<StockDto?> CreateAsync(int warehouseId, int productId, double quantity, string unit = "шт", string shelf = "A1")
+	{
+		var s = new WarehouseStock
+		{
+			WarehouseId = warehouseId,
+			ProductId = productId,
+			Quantity = quantity,
+			Unit = unit,
+			Shelf = shelf,
+			LastUpdated = DateTime.UtcNow
+		};
+		_db.WarehouseStocks.Add(s);
+		await _db.SaveChangesAsync();
+		return (await GetByWarehouseAsync(warehouseId)).FirstOrDefault(x => x.Id == s.Id);
 	}
 
 	public async Task<bool> UpdateAsync(int id, UpdateStockDto dto)
@@ -290,17 +326,7 @@ public class VehicleRepository
 	{
 		var v = await _db.Vehicles.FindAsync(id);
 		if (v == null) return false;
-
-		// Clear nullable references before hard deletion.
-		await _db.Drivers
-			.Where(d => d.VehicleId == id)
-			.ForEachAsync(d => d.VehicleId = null);
-
-		await _db.Routes
-			.Where(r => r.VehicleId == id)
-			.ForEachAsync(r => r.VehicleId = null);
-
-		_db.Vehicles.Remove(v);
+		v.Active = false;
 		await _db.SaveChangesAsync();
 		return true;
 	}

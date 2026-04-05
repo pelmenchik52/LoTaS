@@ -7,6 +7,7 @@ import { Progress } from "../../components/ui/progress";
 import { ArrowUpFromLine, Package, Truck, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import { authApi, managerApi, warehouseApi, type RouteDto, type OrderDto } from "../../../api";
+import { WarehouseSelector } from "../../components/warehouse-selector";
 
 interface ShippingOrder extends OrderDto {
   routeName: string;
@@ -21,8 +22,7 @@ export default function WarehouseShippingPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const warehouseIds = authApi.getWarehouseIds();
-  const warehouseId = warehouseIds[0] ?? 1;
+  const [warehouseId, setWarehouseId] = useState(() => authApi.getWarehouseIds()[0] ?? 1);
   const [warehouseName, setWarehouseName] = useState<string>("");
 
   useEffect(() => {
@@ -118,13 +118,22 @@ export default function WarehouseShippingPage() {
   const pendingOrders = orders.filter(o => o.status === "pending").length;
   const completedToday = orders.filter(o => o.status === "completed").length;
 
+  const getOrderProgress = (order: ShippingOrder) => {
+    const totalProducts = order.products.length;
+    const loadedProducts = order.products.filter(p => p.loaded === p.quantity).length;
+    return (loadedProducts / totalProducts) * 100;
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold mb-2">Відвантаження товарів</h1>
-        <p className="text-muted-foreground">
-          Завантаження товарів на транспорт для доставки
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">Відвантаження товарів</h1>
+          <p className="text-muted-foreground">
+            Завантаження товарів на транспорт для доставки
+          </p>
+        </div>
+        <WarehouseSelector value={warehouseId} onChange={setWarehouseId} />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

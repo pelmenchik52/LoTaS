@@ -300,6 +300,8 @@ export const adminApi = {
 
     // Inventory
     getInventory: () => get<StockDto[]>("/admin/inventory"),
+    createStock: (data: { warehouseId: number; productId: number; quantity: number; unit: string; shelf: string }) =>
+        post<StockDto>("/admin/inventory", data),
     updateStock: (id: number, data: object) => put<void>(`/admin/inventory/${id}`, data),
 
     // Audit

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -7,6 +7,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Badge } from "../../components/ui/badge";
 import { ClipboardCheck, Search, AlertTriangle, CheckCircle, Plus, Minus } from "lucide-react";
 import { toast } from "sonner";
+import { warehouseApi, authApi, type StockDto } from "../../../api";
+import { WarehouseSelector } from "../../components/warehouse-selector";
 
 interface AuditProduct {
   id: string;
@@ -19,16 +21,6 @@ interface AuditProduct {
   status: "not-checked" | "match" | "shortage" | "surplus";
 }
 
-const initialProducts: AuditProduct[] = [
-  { id: "1", name: "Молоко 2.5%", category: "Молочні", shelf: "A-12", systemQuantity: 240, actualQuantity: null, unit: "л", status: "not-checked" },
-  { id: "2", name: "Хліб білий", category: "Хлібобулочні", shelf: "B-05", systemQuantity: 85, actualQuantity: null, unit: "шт", status: "not-checked" },
-  { id: "3", name: "Яблука Голден", category: "Фрукти", shelf: "C-08", systemQuantity: 120, actualQuantity: null, unit: "кг", status: "not-checked" },
-  { id: "4", name: "Сир твердий", category: "Молочні", shelf: "A-15", systemQuantity: 15, actualQuantity: null, unit: "кг", status: "not-checked" },
-  { id: "5", name: "Макарони", category: "Бакалія", shelf: "D-03", systemQuantity: 200, actualQuantity: null, unit: "уп", status: "not-checked" },
-  { id: "6", name: "Йогурт", category: "Молочні", shelf: "A-13", systemQuantity: 8, actualQuantity: null, unit: "шт", status: "not-checked" },
-  { id: "7", name: "Цукор", category: "Бакалія", shelf: "D-01", systemQuantity: 150, actualQuantity: null, unit: "кг", status: "not-checked" },
-];
-
 const statusConfig = {
   "not-checked": { label: "Не звірено", color: "text-gray-600 border-gray-600" },
   "match": { label: "Збігається", color: "text-green-600 border-green-600" },
@@ -37,12 +29,54 @@ const statusConfig = {
 };
 
 export default function WarehouseAuditPage() {
-  const [products, setProducts] = useState<AuditProduct[]>(initialProducts);
+  const [products, setProducts] = useState<AuditProduct[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isAuditStarted, setIsAuditStarted] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [warehouseId, setWarehouseId] = useState(() => {
+    const stored = Number(localStorage.getItem("selectedWarehouse") ?? "0");
+    return stored || (authApi.getWarehouseIds()[0] ?? 0);
+  });
+
+  useEffect(() => {
+    const loadStock = async () => {
+      try {
+        setLoading(true);
+        if (!warehouseId) {
+          toast.error("Спочатку оберіть склад");
+          setLoading(false);
+          return;
+        }
+        localStorage.setItem("selectedWarehouse", String(warehouseId));
+        const stock = await warehouseApi.getStock(warehouseId);
+        const mapped: AuditProduct[] = stock.map((s: StockDto) => ({
+          id: String(s.id),
+          name: s.productName,
+          category: s.productType,
+          shelf: s.shelf,
+          systemQuantity: s.quantity,
+          actualQuantity: null,
+          unit: s.unit,
+          status: "not-checked" as const,
+        }));
+        setProducts(mapped);
+      } catch (err) {
+        toast.error((err as Error).message || "Помилка завантаження залишків");
+      } finally {
+        setLoading(false);
+      }
+    };
+    void loadStock();
+  }, [warehouseId]);
+
+  const handleWarehouseChange = (id: number) => {
+    setWarehouseId(id);
+    setProducts([]);
+    setIsAuditStarted(false);
+  };
 
   const handleSetActualQuantity = (id: string, value: string) => {
-    const quantity = value === "" ? null : Math.max(0, parseInt(value) || 0);
+    const quantity = value === "" ? null : parseInt(value);
     setProducts(prev => prev.map(product => {
       if (product.id === id) {
         let status: AuditProduct["status"] = "not-checked";
@@ -95,7 +129,41 @@ export default function WarehouseAuditPage() {
   const matchCount = products.filter(p => p.status === "match").length;
   const shortageCount = products.filter(p => p.status === "shortage").length;
   const surplusCount = products.filter(p => p.status === "surplus").length;
-  const progress = (checkedCount / products.length) * 100;
+  const progress = products.length > 0 ? (checkedCount / products.length) * 100 : 0;
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold mb-2">Ревізія (Аудит)</h1>
+            <p className="text-muted-foreground">Звірка фактичної кількості з системною</p>
+          </div>
+          <WarehouseSelector value={warehouseId} onChange={handleWarehouseChange} />
+        </div>
+        <div className="flex items-center justify-center p-12">
+          <p className="text-muted-foreground">Завантаження залишків для ревізії...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (products.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold mb-2">Ревізія (Аудит)</h1>
+            <p className="text-muted-foreground">Звірка фактичної кількості з системною</p>
+          </div>
+          <WarehouseSelector value={warehouseId} onChange={handleWarehouseChange} />
+        </div>
+        <div className="p-6 rounded-lg border border-muted bg-muted/50 text-center text-sm text-muted-foreground">
+          На складі немає товарів для ревізії.
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -106,17 +174,20 @@ export default function WarehouseAuditPage() {
             Звірка фактичної кількості з системною
           </p>
         </div>
-        {!isAuditStarted ? (
-          <Button onClick={handleStartAudit} className="gap-2">
-            <ClipboardCheck className="h-4 w-4" />
-            Розпочати ревізію
-          </Button>
-        ) : (
-          <Button onClick={handleCompleteAudit} className="gap-2">
-            <CheckCircle className="h-4 w-4" />
-            Завершити ревізію
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          <WarehouseSelector value={warehouseId} onChange={handleWarehouseChange} />
+          {!isAuditStarted ? (
+            <Button onClick={handleStartAudit} className="gap-2" disabled={loading}>
+              <ClipboardCheck className="h-4 w-4" />
+              Розпочати ревізію
+            </Button>
+          ) : (
+            <Button onClick={handleCompleteAudit} className="gap-2">
+              <CheckCircle className="h-4 w-4" />
+              Завершити ревізію
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Статистика */}
@@ -238,7 +309,6 @@ export default function WarehouseAuditPage() {
                           </Button>
                           <Input
                             type="number"
-                            min={0}
                             value={product.actualQuantity ?? ""}
                             onChange={(e) => handleSetActualQuantity(product.id, e.target.value)}
                             className="w-20 text-center"

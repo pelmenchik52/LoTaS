@@ -9,7 +9,7 @@ import { Badge } from "../../components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../../components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { Checkbox } from "../../components/ui/checkbox";
-import { UserPlus, UserX, Edit, Trash2, Car, Truck, Package as PackageIcon, RefreshCw } from "lucide-react";
+import { UserPlus, Edit, Trash2, Car, Truck, Package as PackageIcon, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { adminApi, type UserDto, type DriverDto, type VehicleDto, type TrailerDto } from "../../../api";
 
@@ -90,7 +90,7 @@ export default function AdminUsersPage() {
     };
 
     const handleDeleteUser = async (id: number) => {
-        try { await adminApi.deleteUser(id); toast.success("Користувача видалено"); load(); }
+        try { await adminApi.deleteUser(id); toast.success("Деактивовано"); load(); }
         catch (e: any) { toast.error(e.message); }
     };
 
@@ -207,7 +207,7 @@ export default function AdminUsersPage() {
                                             </TableCell>
                                             <TableCell className="text-right space-x-2">
                                                 <Button variant="ghost" size="sm" onClick={() => openEditUser(u)}><Edit className="h-4 w-4" /></Button>
-                                                <Button variant="ghost" size="sm" className="text-red-500" onClick={() => handleDeleteUser(u.id)}><UserX className="h-4 w-4" /></Button>
+                                                <Button variant="ghost" size="sm" className="text-red-500" onClick={() => handleDeleteUser(u.id)}><Trash2 className="h-4 w-4" /></Button>
                                             </TableCell>
                                         </TableRow>
                                     ))}

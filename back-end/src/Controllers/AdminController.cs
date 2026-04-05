@@ -61,8 +61,8 @@ public class AdminController : ControllerBase
     {
         var ok = await _users.DeleteAsync(id);
         if (!ok) return NotFound();
-        await _audit.AddAsync(CurrentUserId, "Видалення", "User", $"Видалено користувача id={id}", CurrentIp);
-        return Ok(new { message = "Видалено" });
+        await _audit.AddAsync(CurrentUserId, "Деактивація", "User", $"Деактивовано користувача id={id}", CurrentIp);
+        return Ok(new { message = "Деактивовано" });
     }
 
     // Drivers
@@ -145,12 +145,29 @@ public class AdminController : ControllerBase
     public async Task<IActionResult> GetWarehouses() => Ok(await _warehouses.GetAllAsync());
 
     [HttpPost("warehouses")]
-    public async Task<IActionResult> CreateWarehouse([FromBody] dynamic dto)
+    public async Task<IActionResult> CreateWarehouse([FromBody] CreateWarehouseDto dto)
     {
-        string name = dto.name; string address = dto.address;
-        double lat = dto.lat; double lng = dto.lng;
-        var result = await _warehouses.CreateAsync(name, address, lat, lng);
+        var result = await _warehouses.CreateAsync(dto.Name, dto.Address, dto.Lat, dto.Lng);
+        await _audit.AddAsync(CurrentUserId, "Створення", "Warehouse", $"Створено склад {dto.Name}", CurrentIp);
         return Ok(result);
+    }
+
+    [HttpPut("warehouses/{id}")]
+    public async Task<IActionResult> UpdateWarehouse(int id, [FromBody] UpdateWarehouseDto dto)
+    {
+        var ok = await _warehouses.UpdateAsync(id, dto);
+        if (!ok) return NotFound();
+        await _audit.AddAsync(CurrentUserId, "Редагування", "Warehouse", $"Оновлено склад id={id}", CurrentIp);
+        return Ok(new { message = "Оновлено" });
+    }
+
+    [HttpDelete("warehouses/{id}")]
+    public async Task<IActionResult> DeleteWarehouse(int id)
+    {
+        var ok = await _warehouses.DeleteAsync(id);
+        if (!ok) return NotFound();
+        await _audit.AddAsync(CurrentUserId, "Деактивація", "Warehouse", $"Деактивовано склад id={id}", CurrentIp);
+        return Ok(new { message = "Деактивовано" });
     }
 
     // Products
@@ -181,6 +198,16 @@ public class AdminController : ControllerBase
     }
 
     // Stock (all warehouses)
+    [HttpPost("inventory")]
+    public async Task<IActionResult> CreateStock([FromBody] CreateStockDto dto)
+    {
+        var result = await _stock.CreateAsync(dto.WarehouseId, dto.ProductId, dto.Quantity, dto.Unit, dto.Shelf);
+        if (result == null) return BadRequest(new { message = "Не вдалося створити запис" });
+        await _audit.AddAsync(CurrentUserId, "Створення", "WarehouseStock",
+            $"Створено залишок товару id={dto.ProductId} на складі id={dto.WarehouseId}, кількість={dto.Quantity}", CurrentIp);
+        return Ok(result);
+    }
+
     [HttpGet("inventory")]
     public async Task<IActionResult> GetAllInventory() => Ok(await _stock.GetAllAsync());
 

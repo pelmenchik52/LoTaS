@@ -11,6 +11,7 @@ import { Textarea } from "../../components/ui/textarea";
 import { Plus, Clock, CheckCircle, XCircle, Package, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { warehouseApi, authApi, type DeliveryRequestDto, type ProductDto } from "../../../api";
+import { WarehouseSelector } from "../../components/warehouse-selector";
 
 const statusConfig: Record<string, { label: string; icon: any; color: string }> = {
     pending: { label: "Очікує", icon: Clock, color: "text-yellow-600 border-yellow-600" },
@@ -37,7 +38,7 @@ export default function WarehouseRequestsPage() {
     const [notes, setNotes] = useState("");
     const [urgency, setUrgency] = useState("1");
 
-    const warehouseId = authApi.getWarehouseIds()[0] ?? 1;
+    const [warehouseId, setWarehouseId] = useState(() => authApi.getWarehouseIds()[0] ?? 1);
 
     const load = async () => {
         try {
@@ -55,7 +56,7 @@ export default function WarehouseRequestsPage() {
         }
     };
 
-    useEffect(() => { load(); }, []);
+    useEffect(() => { load(); }, [warehouseId]);
 
     const handleAddProduct = () => {
         if (!currentProductId || !currentQuantity) { toast.error("Оберіть товар та вкажіть кількість"); return; }
@@ -86,7 +87,8 @@ export default function WarehouseRequestsPage() {
                     <h1 className="text-3xl font-bold mb-2">Запити доставки</h1>
                     <p className="text-muted-foreground">Управління запитами на поставку товарів</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
+                    <WarehouseSelector value={warehouseId} onChange={setWarehouseId} />
                     <Button variant="outline" onClick={load} disabled={loading}>
                         <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} /> Оновити
                     </Button>

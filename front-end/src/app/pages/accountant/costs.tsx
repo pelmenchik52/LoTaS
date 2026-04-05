@@ -5,8 +5,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { Fuel, DollarSign, TrendingDown, Download, Loader2 } from "lucide-react";
 import { Badge } from "../../components/ui/badge";
-import { accountantApi } from "../../api/api";
-import type { RouteDto } from "../../api/api";
+import { accountantApi } from "../../../api";
+import type { RouteDto } from "../../../api";
 
 export default function AccountantCostsPage() {
   const [routes, setRoutes] = useState<RouteDto[]>([]);
@@ -35,6 +35,29 @@ export default function AccountantCostsPage() {
   const totalFuelCost = routes.reduce((sum, r) => sum + (r.fuelCost || 0), 0);
   const totalDriverSalary = routes.reduce((sum, r) => sum + (r.driverSalary || 0), 0);
   const totalCost = routes.reduce((sum, r) => sum + (r.totalCost || 0), 0);
+
+  // Mock mileage data grouped by vehicle (could be enhanced with real API data)
+  const mileageData = routes.reduce((acc, route) => {
+    const vehicleName = route.vehicleModel || "Невідомий транспорт";
+    const existing = acc.find(v => v.vehicle === vehicleName);
+    if (existing) {
+      existing.mileage += route.distance;
+      existing.fuel += (route.fuelCost || 0) / 52; // Mock fuel calculation (assuming 52 UAH per liter)
+      existing.cost += route.totalCost || 0;
+    } else {
+      acc.push({
+        vehicle: vehicleName,
+        mileage: route.distance,
+        fuel: (route.fuelCost || 0) / 52,
+        cost: route.totalCost || 0,
+      });
+    }
+    return acc;
+  }, [] as { vehicle: string; mileage: number; fuel: number; cost: number }[]);
+
+  // Calculate total fuel and average consumption
+  const totalFuel = mileageData.reduce((sum, v) => sum + v.fuel, 0);
+  const avgFuelConsumption = totalMileage > 0 ? (totalFuel / totalMileage) * 100 : 0;
 
   // Mock cost breakdown for now (could be enhanced with real API data)
   const costBreakdown = [

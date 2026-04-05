@@ -57,9 +57,8 @@ export default function ManagerCostsPage() {
   const selectedDriverDto = drivers.find((d) => String(d.id) === selectedDriver);
   const salaryDriver = drivers.find((d) => String(d.id) === salaryDriverId);
 
-  // Розрахунки маршруту
-  const distanceNum = Math.max(0, parseFloat(distance) || 0);
-  const fuelPriceNum = Math.max(0, parseFloat(fuelPrice) || 0);
+  const distanceNum = parseFloat(distance) || 0;
+  const fuelPriceNum = parseFloat(fuelPrice) || 0;
   const cargoWeightNum = parseFloat(cargoWeight) || 0;
   const estimatedHours = distanceNum / AVERAGE_SPEED;
 
@@ -130,12 +129,12 @@ export default function ManagerCostsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="distance">Відстань (км)</Label>
-                    <Input id="distance" type="number" min={0} value={distance} onChange={(e) => setDistance(e.target.value)} placeholder="150" />
+                    <Input id="distance" type="number" value={distance} onChange={(e) => setDistance(e.target.value)} placeholder="150" />
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="fuelPrice">Ціна палива (грн/л)</Label>
-                    <Input id="fuelPrice" type="number" min={0} step="0.1" value={fuelPrice} onChange={(e) => setFuelPrice(e.target.value)} placeholder="52" />
+                    <Input id="fuelPrice" type="number" step="0.1" value={fuelPrice} onChange={(e) => setFuelPrice(e.target.value)} placeholder="52" />
                   </div>
                 </div>
 
@@ -327,7 +326,7 @@ export default function ManagerCostsPage() {
 
                 <div className="space-y-2">
                   <Label htmlFor="salaryDistance">Відстань маршруту (км)</Label>
-                  <Input id="salaryDistance" type="number" min={0} value={salaryDistance} onChange={(e) => setSalaryDistance(e.target.value)} placeholder="500" />
+                  <Input id="salaryDistance" type="number" value={salaryDistance} onChange={(e) => setSalaryDistance(e.target.value)} placeholder="500" />
                 </div>
 
                 <div className="p-4 bg-blue-50 rounded-lg space-y-2">
