@@ -47,9 +47,17 @@ const menuItems: MenuItem[] = [
   { icon: FileText, label: "Аудит системи", path: "/admin/audit", roles: ["admin"] },
   
   // Менеджер
+<<<<<<< Updated upstream
   { icon: Route, label: "Планування маршрутів", path: "/manager/routes", roles: ["manager"] },
   { icon: Calculator, label: "Калькулятор витрат", path: "/manager/costs", roles: ["manager"] },
   { icon: Monitor, label: "Моніторинг виконання", path: "/manager/monitoring", roles: ["manager"] },
+=======
+  { icon: Route, label: "Планування маршрутів", path: "/app/manager/routes", roles: ["manager"] },
+  { icon: Calculator, label: "Калькулятор витрат", path: "/app/manager/costs", roles: ["manager"] },
+  { icon: Monitor, label: "Моніторинг виконання", path: "/app/manager/monitoring", roles: ["manager"] },
+  { icon: Building2, label: "Запити від компаній", path: "/app/manager/company-requests", roles: ["manager"] },
+  { icon: Package, label: "Асортимент товарів", path: "/app/manager/products", roles: ["manager"] },
+>>>>>>> Stashed changes
   
   // Комірник
   { icon: Warehouse, label: "Вибір складу", path: "/warehouse/select", roles: ["warehouse"] },

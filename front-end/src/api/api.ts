@@ -330,9 +330,14 @@ export const managerApi = {
     getVehicles: () => get<VehicleDto[]>("/manager/vehicles"),
 
     calculateCosts: (data: object) => post<CostResultDto>("/manager/costs/calculate", data),
+
+    getProducts: () => get<ProductDto[]>("/manager/products"),
+    createProduct: (data: object) => post<ProductDto>("/manager/products", data),
+    updateProduct: (id: number, data: object) => put<void>(`/manager/products/${id}`, data),
+    deleteProduct: (id: number) => del<void>(`/manager/products/${id}`),
 };
 
-// ─── Warehouse API ────────────────────────────────────────────────────────────
+// ─── Warehouse API ───────────────────────────────────────────────────────────
 
 export const warehouseApi = {
     getWarehouses: () => get<WarehouseDto[]>("/warehouse"),
