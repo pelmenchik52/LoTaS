@@ -86,6 +86,15 @@ public class WarehouseController : ControllerBase
     [HttpGet("routes")]
     public async Task<IActionResult> GetRoutes() => Ok(await _routes.GetAllAsync());
 
+    // Update delivery request status
+    [HttpPut("requests/{id}/status")]
+    public async Task<IActionResult> UpdateRequestStatus(int id, [FromBody] UpdateDeliveryRequestStatusDto dto)
+    {
+        var ok = await _requests.UpdateStatusAsync(id, dto);
+        if (!ok) return NotFound();
+        return Ok(new { message = "Статус запиту оновлено" });
+    }
+
     // Update order status
     [HttpPut("orders/{id}/status")]
     public async Task<IActionResult> UpdateOrderStatus(int id, [FromBody] UpdateOrderStatusDto dto)

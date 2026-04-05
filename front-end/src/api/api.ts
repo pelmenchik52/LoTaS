@@ -362,6 +362,8 @@ export const warehouseApi = {
     getRoutes: () => get<RouteDto[]>("/warehouse/routes"),
     updateOrderStatus: (id: number, status: string) =>
         put<void>(`/warehouse/orders/${id}/status`, { status }),
+    updateRequestStatus: (id: number, status: string) =>
+        put<void>(`/warehouse/requests/${id}/status`, { status }),
 };
 
 // ─── Accountant API ───────────────────────────────────────────────────────────

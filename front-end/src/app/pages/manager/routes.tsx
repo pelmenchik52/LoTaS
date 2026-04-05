@@ -41,6 +41,7 @@ import type {
   WarehouseDto,
   CompanyRequestDto,
   StockDto,
+  RouteDto,
 } from "../../../api";
 import { MapComponent } from "../../components/map-component";
 
@@ -73,6 +74,7 @@ export default function ManagerRoutesPage() {
   const [drivers, setDrivers] = useState<DriverDto[]>([]);
   const [vehicles, setVehicles] = useState<VehicleDto[]>([]);
   const [companyRequests, setCompanyRequests] = useState<CompanyRequestDto[]>([]);
+  const [existingRoutes, setExistingRoutes] = useState<RouteDto[]>([]);
   const [allStock, setAllStock] = useState<Map<number, StockDto[]>>(new Map());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -104,17 +106,19 @@ export default function ManagerRoutesPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [warehousesData, driversData, vehiclesData, companyData] =
+      const [warehousesData, driversData, vehiclesData, companyData, routesData] =
         await Promise.all([
           warehouseApi.getWarehouses(),
           managerApi.getDrivers(),
           managerApi.getVehicles(),
           companyRequestApi.getAll(),
+          managerApi.getRoutes(),
         ]);
       setWarehouses(warehousesData);
       setDrivers(driversData);
       setVehicles(vehiclesData);
       setCompanyRequests(companyData);
+      setExistingRoutes(routesData);
 
       // Load stock for all active warehouses
       const activeWarehouses = warehousesData.filter((w) => w.active);
@@ -142,10 +146,33 @@ export default function ManagerRoutesPage() {
   ), [companyRequests]);
 
   const availableDrivers = drivers.filter((d) => d.active && !d.isBusy);
-  const availableVehicles = vehicles.filter((v) => v.active);
+
+  // Vehicles on active routes are busy
+  const busyVehicleIds = useMemo(() => {
+    const ids = new Set<number>();
+    for (const r of existingRoutes) {
+      if (r.vehicleId && r.status !== "completed" && r.status !== "cancelled") {
+        ids.add(r.vehicleId);
+      }
+    }
+    return ids;
+  }, [existingRoutes]);
+  const availableVehicles = vehicles.filter((v) => v.active && !busyVehicleIds.has(v.id));
 
   const selectedDriver = drivers.find((d) => String(d.id) === selectedDriverId);
   const selectedVehicle2 = vehicles.find((v) => String(v.id) === selectedVehicleId);
+
+  // Auto-select vehicle when driver changes (if driver has assigned vehicle)
+  useEffect(() => {
+    if (!selectedDriverId) { setSelectedVehicleId(""); return; }
+    const driver = drivers.find((d) => String(d.id) === selectedDriverId);
+    if (driver?.vehicleId) {
+      const vehicle = availableVehicles.find((v) => v.id === driver.vehicleId);
+      if (vehicle) {
+        setSelectedVehicleId(String(vehicle.id));
+      }
+    }
+  }, [selectedDriverId]);
 
   // Auto-select warehouses based on product availability + proximity
   useEffect(() => {
@@ -609,7 +636,7 @@ export default function ManagerRoutesPage() {
                   <SelectContent>
                     {availableDrivers.map((d) => (
                       <SelectItem key={d.id} value={String(d.id)}>
-                        {d.name}
+                        {d.name}{d.vehicleModel ? ` (${d.vehicleModel})` : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -628,11 +655,14 @@ export default function ManagerRoutesPage() {
                   <SelectContent>
                     {availableVehicles.map((v) => (
                       <SelectItem key={v.id} value={String(v.id)}>
-                        {v.model} — {v.plateNumber}
+                        {v.model} — {v.plateNumber}{v.trailerType ? ` 🔗 ${v.trailerType}` : " ⚠️ без причепа"}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {selectedVehicle2 && !selectedVehicle2.trailerId && (
+                  <p className="text-xs text-amber-600">Причеп буде автоматично під'єднано при створенні маршруту</p>
+                )}
               </div>
             </CardContent>
           </Card>

@@ -139,7 +139,7 @@ export default function CompanyRequestPage() {
                 mapRef.current = null;
             }
         };
-    }, [handleMapClick]);
+    }, [handleMapClick, submitted]);
 
     // Product selection
     const [selectedProducts, setSelectedProducts] = useState<{ productId: number; productName: string; quantity: number; weight: number }[]>([]);

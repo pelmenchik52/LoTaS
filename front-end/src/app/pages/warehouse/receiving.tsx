@@ -73,6 +73,9 @@ export default function WarehouseReceivingPage() {
         });
       }
 
+      // Persist status to backend
+      await warehouseApi.updateRequestStatus(requestId, "completed");
+
       setRequests((prev) => prev.map((item) =>
         item.id === requestId ? { ...item, status: "completed", products: item.products } : item
       ));

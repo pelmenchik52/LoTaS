@@ -400,21 +400,42 @@ public class RouteRepository
 		decimal fuelCost = 0;
 		decimal driverSalary = 0;
 
-		if (dto.VehicleId.HasValue && dto.FuelPrice.HasValue && dto.Distance > 0)
+		Vehicle? vehicle = null;
+		if (dto.VehicleId.HasValue)
 		{
-			var vehicle = await _db.Vehicles.FindAsync(dto.VehicleId.Value);
-			if (vehicle != null)
+			vehicle = await _db.Vehicles.FindAsync(dto.VehicleId.Value);
+			if (vehicle != null && dto.FuelPrice.HasValue && dto.Distance > 0)
 			{
 				var fuelLiters = (dto.Distance / 100.0) * vehicle.FuelConsumption;
 				fuelCost = (decimal)(fuelLiters * dto.FuelPrice.Value);
 			}
+
+			// Auto-attach free trailer if vehicle has none
+			if (vehicle != null && !vehicle.TrailerId.HasValue)
+			{
+				var usedTrailerIds = await _db.Vehicles
+					.Where(v => v.TrailerId.HasValue && v.Active)
+					.Select(v => v.TrailerId!.Value)
+					.ToListAsync();
+				var freeTrailer = await _db.Trailers
+					.Where(t => t.Active && !usedTrailerIds.Contains(t.Id))
+					.FirstOrDefaultAsync();
+				if (freeTrailer != null)
+					vehicle.TrailerId = freeTrailer.Id;
+			}
 		}
 
-		if (dto.DriverId.HasValue && dto.EstimatedTime > 0)
+		Driver? driver = null;
+		if (dto.DriverId.HasValue)
 		{
-			var driver = await _db.Drivers.FindAsync(dto.DriverId.Value);
+			driver = await _db.Drivers.FindAsync(dto.DriverId.Value);
 			if (driver != null)
-				driverSalary = driver.HourlyRate * (decimal)dto.EstimatedTime;
+			{
+				if (dto.EstimatedTime > 0)
+					driverSalary = driver.HourlyRate * (decimal)dto.EstimatedTime;
+				// Mark driver as busy immediately
+				driver.IsBusy = true;
+			}
 		}
 
 		var route = new Route
@@ -457,12 +478,12 @@ public class RouteRepository
 		}
 
 		r.Status = status;
-		// If driver is marked busy/free based on route status
+		// Mark driver busy/free based on route status
 		if (r.DriverId.HasValue)
 		{
 			var driver = await _db.Drivers.FindAsync(r.DriverId.Value);
 			if (driver != null)
-				driver.IsBusy = status == "in-progress";
+				driver.IsBusy = status != "completed" && status != "cancelled";
 		}
 		await _db.SaveChangesAsync();
 		return (true, null);
