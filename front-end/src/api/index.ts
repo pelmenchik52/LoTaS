@@ -325,6 +325,12 @@ export const managerApi = {
     getDrivers: () => get<DriverDto[]>("/manager/drivers"),
     getVehicles: () => get<VehicleDto[]>("/manager/vehicles"),
 
+    // Products
+    getProducts: () => get<ProductDto[]>("/manager/products"),
+    createProduct: (data: object) => post<ProductDto>("/manager/products", data),
+    updateProduct: (id: number, data: object) => put<void>(`/manager/products/${id}`, data),
+    deleteProduct: (id: number) => del<void>(`/manager/products/${id}`),
+
     calculateCosts: (data: object) => post<CostResultDto>("/manager/costs/calculate", data),
 };
 

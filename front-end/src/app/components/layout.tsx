@@ -46,12 +46,14 @@ const menuItems: MenuItem[] = [
   { icon: Network, label: "Структура мережі", path: "/app/admin/network", roles: ["admin"] },
   { icon: PackageSearch, label: "Управління складом", path: "/app/admin/inventory", roles: ["admin"] },
   { icon: FileText, label: "Аудит системи", path: "/app/admin/audit", roles: ["admin"] },
+  { icon: Package, label: "Асортимент товарів", path: "/app/admin/products", roles: ["admin"] },
   
   // Менеджер
   { icon: Route, label: "Планування маршрутів", path: "/app/manager/routes", roles: ["manager"] },
   { icon: Calculator, label: "Калькулятор витрат", path: "/app/manager/costs", roles: ["manager"] },
   { icon: Monitor, label: "Моніторинг виконання", path: "/app/manager/monitoring", roles: ["manager"] },
   { icon: Building2, label: "Запити від компаній", path: "/app/manager/company-requests", roles: ["manager"] },
+  { icon: Package, label: "Асортимент товарів", path: "/app/manager/products", roles: ["manager"] },
   
   // Комірник
   { icon: Warehouse, label: "Вибір складу", path: "/app/warehouse/select", roles: ["warehouse"] },

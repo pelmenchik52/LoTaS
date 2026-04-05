@@ -13,6 +13,7 @@ import ManagerRoutesPage from "./pages/manager/routes";
 import ManagerCostsPage from "./pages/manager/costs";
 import ManagerMonitoringPage from "./pages/manager/monitoring";
 import ManagerCompanyRequestsPage from "./pages/manager/company-requests";
+import ManagerProductsPage from "./pages/manager/products";
 
 // Публічна сторінка
 import CompanyRequestPage from "./pages/company-request";
@@ -59,6 +60,8 @@ export const router = createBrowserRouter([
       { path: "manager/costs", Component: ManagerCostsPage },
       { path: "manager/monitoring", Component: ManagerMonitoringPage },
       { path: "manager/company-requests", Component: ManagerCompanyRequestsPage },
+      { path: "manager/products", Component: ManagerProductsPage },
+      { path: "admin/products", Component: ManagerProductsPage },
       
       // Комірник
       { path: "warehouse/select", Component: WarehouseSelectPage },
