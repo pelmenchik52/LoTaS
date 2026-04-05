@@ -1,23 +1,23 @@
 {
   "format": 1,
   "restore": {
-    "D:\\0\\LoTaS\\back-end\\back-end.csproj": {}
+    "D:\\Хуйня\\хакатон\\BEST hacaton\\LoTaS\\back-end\\back-end.csproj": {}
   },
   "projects": {
-    "D:\\0\\LoTaS\\back-end\\back-end.csproj": {
+    "D:\\Хуйня\\хакатон\\BEST hacaton\\LoTaS\\back-end\\back-end.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\0\\LoTaS\\back-end\\back-end.csproj",
+        "projectUniqueName": "D:\\Хуйня\\хакатон\\BEST hacaton\\LoTaS\\back-end\\back-end.csproj",
         "projectName": "back-end",
-        "projectPath": "D:\\0\\LoTaS\\back-end\\back-end.csproj",
-        "packagesPath": "C:\\Users\\Влад\\.nuget\\packages\\",
-        "outputPath": "D:\\0\\LoTaS\\back-end\\obj\\",
+        "projectPath": "D:\\Хуйня\\хакатон\\BEST hacaton\\LoTaS\\back-end\\back-end.csproj",
+        "packagesPath": "C:\\Users\\Lenovo\\.nuget\\packages\\",
+        "outputPath": "D:\\Хуйня\\хакатон\\BEST hacaton\\LoTaS\\back-end\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\Влад\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\Lenovo\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -26,6 +26,7 @@
         ],
         "sources": {
           "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "C:\\Program Files\\dotnet\\library-packs": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
@@ -44,7 +45,7 @@
           "auditLevel": "low",
           "auditMode": "direct"
         },
-        "SdkAnalysisLevel": "9.0.300"
+        "SdkAnalysisLevel": "10.0.200"
       },
       "frameworks": {
         "net8.0": {
@@ -94,7 +95,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.311/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.201/PortableRuntimeIdentifierGraph.json"
         }
       }
     }

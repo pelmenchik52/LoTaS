@@ -7,8 +7,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Badge } from "../../components/ui/badge";
 import { Search, Package, AlertTriangle, CheckCircle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
-import { warehouseApi, type StockDto } from "../../../api";
-import { authApi } from "../../../api";
+import { useParams } from "react-router";
+import { warehouseApi, authApi, type StockDto } from "../../../api";
 
 const statusConfig = {
     "in-stock": { label: "В наявності", color: "text-green-600 border-green-600", icon: CheckCircle },
@@ -17,19 +17,29 @@ const statusConfig = {
 };
 
 export default function WarehouseStockPage() {
+    const { warehouseId: paramWarehouseId } = useParams<{ warehouseId?: string }>();
     const [products, setProducts] = useState<StockDto[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
     const [categoryFilter, setCategoryFilter] = useState("Всі категорії");
     const [statusFilter, setStatusFilter] = useState("all");
 
-    const warehouseIds = authApi.getWarehouseIds();
-    const warehouseId = warehouseIds[0] ?? 1;
+    const myWarehouseIds = authApi.getWarehouseIds();
+    const singleWarehouseId = paramWarehouseId ? Number(paramWarehouseId) : null;
 
     const load = async () => {
         try {
             setLoading(true);
-            const data = await warehouseApi.getStock(warehouseId);
+            let data: StockDto[];
+            if (singleWarehouseId) {
+                localStorage.setItem("selectedWarehouse", String(singleWarehouseId));
+                data = await warehouseApi.getStock(singleWarehouseId);
+            } else if (myWarehouseIds.length > 0) {
+                const results = await Promise.all(myWarehouseIds.map(id => warehouseApi.getStock(id)));
+                data = results.flat();
+            } else {
+                data = [];
+            }
             setProducts(data);
         } catch (e: any) {
             toast.error(e.message);
@@ -38,7 +48,7 @@ export default function WarehouseStockPage() {
         }
     };
 
-    useEffect(() => { load(); }, [warehouseId]);
+    useEffect(() => { load(); }, [paramWarehouseId]);
 
     const categories = ["Всі категорії", ...Array.from(new Set(products.map(p => p.productType)))];
 
@@ -59,7 +69,11 @@ export default function WarehouseStockPage() {
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-3xl font-bold mb-2">Складські залишки</h1>
-                    <p className="text-muted-foreground">Перегляд та управління товарами на складі</p>
+                    <p className="text-muted-foreground">
+                        {singleWarehouseId
+                            ? `Залишки на складі: ${products[0]?.warehouseName ?? ""}`
+                            : "Залишки по всіх ваших складах"}
+                    </p>
                 </div>
                 <Button variant="outline" onClick={load} disabled={loading}>
                     <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
@@ -123,6 +137,7 @@ export default function WarehouseStockPage() {
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Назва товару</TableHead>
+                                        {!singleWarehouseId && <TableHead className="hidden md:table-cell">Склад</TableHead>}
                                         <TableHead className="hidden md:table-cell">Категорія</TableHead>
                                         <TableHead>Кількість</TableHead>
                                         <TableHead className="hidden sm:table-cell">Стелаж</TableHead>
@@ -137,6 +152,7 @@ export default function WarehouseStockPage() {
                                         return (
                                             <TableRow key={p.id}>
                                                 <TableCell className="font-medium">{p.productName}</TableCell>
+                                                {!singleWarehouseId && <TableCell className="hidden md:table-cell text-muted-foreground">{p.warehouseName}</TableCell>}
                                                 <TableCell className="hidden md:table-cell text-muted-foreground">{p.productType}</TableCell>
                                                 <TableCell>
                                                     <span className={p.status === "out-of-stock" ? "text-red-600" : ""}>
@@ -160,7 +176,7 @@ export default function WarehouseStockPage() {
                                     })}
                                     {filtered.length === 0 && (
                                         <TableRow>
-                                            <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                                            <TableCell colSpan={singleWarehouseId ? 6 : 7} className="text-center text-muted-foreground py-8">
                                                 Товарів не знайдено
                                             </TableCell>
                                         </TableRow>

@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../..
 import { Button } from "../../components/ui/button";
 import { Warehouse, MapPin, Package, Check } from "lucide-react";
 import { useNavigate } from "react-router";
-import { warehouseApi, type WarehouseDto } from "../../../api";
+import { warehouseApi, authApi, type WarehouseDto } from "../../../api";
 
 export default function WarehouseSelectPage() {
   const [warehouses, setWarehouses] = useState<WarehouseDto[]>([]);
@@ -17,7 +17,11 @@ export default function WarehouseSelectPage() {
       try {
         setLoading(true);
         const data = await warehouseApi.getWarehouses();
-        setWarehouses(data);
+        const myWarehouseIds = authApi.getWarehouseIds();
+        const filtered = myWarehouseIds.length > 0
+          ? data.filter((w) => myWarehouseIds.includes(w.id))
+          : data;
+        setWarehouses(filtered);
       } catch (err) {
         setError((err as Error).message || "Помилка завантаження складів");
       } finally {
@@ -32,7 +36,7 @@ export default function WarehouseSelectPage() {
     setSelectedWarehouse(id);
     localStorage.setItem("selectedWarehouse", id);
     setTimeout(() => {
-      navigate("/warehouse/stock");
+      navigate(`/warehouse/stock/${id}`);
     }, 300);
   };
 

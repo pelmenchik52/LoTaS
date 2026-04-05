@@ -50,6 +50,7 @@ export const router = createBrowserRouter([
       // Комірник
       { path: "warehouse/select", Component: WarehouseSelectPage },
       { path: "warehouse/stock", Component: WarehouseStockPage },
+      { path: "warehouse/stock/:warehouseId", Component: WarehouseStockPage },
       { path: "warehouse/receiving", Component: WarehouseReceivingPage },
       { path: "warehouse/shipping", Component: WarehouseShippingPage },
       { path: "warehouse/audit", Component: WarehouseAuditPage },

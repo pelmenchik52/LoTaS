@@ -7,6 +7,7 @@ import { Badge } from "../../components/ui/badge";
 import { ArrowDownToLine, Check, Package, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { authApi, warehouseApi, type DeliveryRequestDto } from "../../../api";
+import { WarehouseSelector } from "../../components/warehouse-selector";
 
 interface ReceivingRequest extends DeliveryRequestDto {
   products: (DeliveryRequestDto["products"][number] & { receivedQuantity: number })[];
@@ -18,8 +19,7 @@ export default function WarehouseReceivingPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const warehouseIds = authApi.getWarehouseIds();
-  const warehouseId = warehouseIds[0] ?? 1;
+  const [warehouseId, setWarehouseId] = useState(() => authApi.getWarehouseIds()[0] ?? 1);
 
   useEffect(() => {
     const loadRequests = async () => {
@@ -87,9 +87,12 @@ export default function WarehouseReceivingPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold mb-2">Прийом товарів</h1>
-        <p className="text-muted-foreground">Приймання товарів на баланс складу</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">Прийом товарів</h1>
+          <p className="text-muted-foreground">Приймання товарів на баланс складу</p>
+        </div>
+        <WarehouseSelector value={warehouseId} onChange={setWarehouseId} />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
