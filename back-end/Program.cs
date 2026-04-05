@@ -39,7 +39,7 @@ builder.Services.AddAuthorization();
 // CORS - allow React frontend
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowFrontend", policy =>
+    options.AddDefaultPolicy(policy =>
     {
         policy.WithOrigins(
             "http://localhost:5173",
@@ -91,7 +91,22 @@ using (var scope = app.Services.CreateScope())
     await DbSeeder.SeedAsync(db);
 }
 
-app.UseCors("AllowFrontend");
+app.UseCors();
+
+// Catch unhandled exceptions so CORS headers are still present on 500 responses
+app.UseExceptionHandler(errorApp =>
+{
+    errorApp.Run(async context =>
+    {
+        context.Response.StatusCode = 500;
+        context.Response.ContentType = "application/json";
+        var error = context.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>();
+        var message = error?.Error?.Message ?? "Internal server error";
+        Console.Error.WriteLine($"Unhandled exception: {error?.Error}");
+        await context.Response.WriteAsJsonAsync(new { message });
+    });
+});
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

@@ -87,6 +87,9 @@ namespace LogisticsBackend.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
+                    b.Property<int?>("ManagerId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Notes")
                         .HasColumnType("longtext");
 
@@ -102,6 +105,8 @@ namespace LogisticsBackend.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ManagerId");
 
                     b.ToTable("CompanyRequests");
                 });
@@ -630,6 +635,16 @@ namespace LogisticsBackend.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("LogisticsBackend.Models.CompanyRequest", b =>
+                {
+                    b.HasOne("LogisticsBackend.Models.User", "Manager")
+                        .WithMany()
+                        .HasForeignKey("ManagerId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Manager");
                 });
 
             modelBuilder.Entity("LogisticsBackend.Models.CompanyRequestProduct", b =>
