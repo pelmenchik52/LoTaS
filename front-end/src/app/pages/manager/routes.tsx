@@ -102,29 +102,45 @@ export default function ManagerRoutesPage() {
   const availableDrivers = drivers.filter((d) => d.active && !d.isBusy);
   const availableVehicles = vehicles.filter((v) => v.active);
 
-  const mapPoints = useMemo(() => {
-    const pts: {
-      id: string;
-      name: string;
-      address: string;
-      lat: number;
-      lng: number;
-      priority: number;
-    }[] = [];
+    const mapPoints = useMemo(() => {
+        const pts: {
+            id: string;
+            name: string;
+            address: string;
+            lat: number;
+            lng: number;
+            priority: number;
+        }[] = [];
 
-    if (selectedWarehouse) {
-      pts.push({
-        id: `wh-${selectedWarehouse.id}`,
-        name: selectedWarehouse.name,
-        address: selectedWarehouse.address,
-        lat: selectedWarehouse.lat,
-        lng: selectedWarehouse.lng,
-        priority: 0,
-      });
-    }
+        if (selectedWarehouse) {
+            pts.push({
+                id: `wh-${selectedWarehouse.id}`,
+                name: selectedWarehouse.name,
+                address: selectedWarehouse.address,
+                lat: selectedWarehouse.lat,
+                lng: selectedWarehouse.lng,
+                priority: 0,
+            });
+        }
 
-    return pts;
-  }, [selectedWarehouse]);
+        pendingRequests
+            .filter((r) => selectedRequestIds.has(r.id))
+            .forEach((r) => {
+                const wh = warehouses.find((w) => w.name === r.warehouseName);
+                if (wh) {
+                    pts.push({
+                        id: `req-${r.id}`,
+                        name: r.warehouseName,
+                        address: wh.address,
+                        lat: wh.lat,
+                        lng: wh.lng,
+                        priority: r.urgency,
+                    });
+                }
+            });
+
+        return pts;
+    }, [selectedWarehouse, selectedRequestIds, pendingRequests, warehouses]);
 
   /* ── handlers ──────────────────────────────────────────────────── */
 
