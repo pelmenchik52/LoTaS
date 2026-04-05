@@ -12,10 +12,10 @@ var builder = WebApplication.CreateBuilder(args);
 // Database
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseMySql(connectionString, ServerVersion.Parse("8.0"), 
+    options.UseMySql(connectionString, ServerVersion.Parse("8.0"),
         mySqlOptions => mySqlOptions.EnableRetryOnFailure(
-            maxRetryCount: 10, 
-            maxRetryDelay: TimeSpan.FromSeconds(5), 
+            maxRetryCount: 10,
+            maxRetryDelay: TimeSpan.FromSeconds(5),
             errorNumbersToAdd: null)));
 // JWT
 var jwtKey = builder.Configuration["Jwt:Key"]!;
@@ -39,7 +39,7 @@ builder.Services.AddAuthorization();
 // CORS - allow React frontend
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowFrontend", policy =>
+    options.AddDefaultPolicy(policy =>
     {
         policy.WithOrigins(
             "http://localhost:5173",
@@ -82,16 +82,16 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    
+
     // Give the database a moment to accept connections 
-   
+
     // REPLACE EnsureCreatedAsync with MigrateAsync
-    await db.Database.MigrateAsync(); 
-    
+    await db.Database.MigrateAsync();
+
     await DbSeeder.SeedAsync(db);
 }
 
-app.UseCors("AllowFrontend");
+app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
