@@ -19,4 +19,8 @@ export default defineConfig({
 
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
   assetsInclude: ['**/*.svg', '**/*.csv'],
+  server: {
+    host: true, // Обов'язково для роботи всередині Docker (щоб слухати 0.0.0.0)
+    allowedHosts: ['.ngrok-free.dev'], // Дозволяє всі піддомени Ngrok
+  }
 })
