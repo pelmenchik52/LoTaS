@@ -1,26 +1,48 @@
-# LoTaS
-Very usefull app for managing transport systems
+# LoTaS — Logistics Management System 
 
-## CI/CD
+**LoTaS** (Logistics Management System) — це сучасна full-stack платформа для автоматизації складської та транспортної логістики. Проєкт дозволяє координувати роботу між менеджерами, бухгалтерами та складськими працівниками в режимі реального часу.
 
-This project uses GitHub Actions for continuous integration and deployment.
+---
 
-### CI Workflow
-- **Triggers**: Push and pull requests to `main` or `master` branches
-- **Jobs**:
-  - Build backend (.NET 8)
-  - Build frontend (React/Vite)
-  - Build Docker images
-  - Validate Docker Compose configuration
+##  Технологічний стек
 
-### CD Workflow
-- **Triggers**: Successful CI runs or direct pushes to `main`/`master`
-- **Jobs**:
-  - Build and push Docker images to Docker Hub
-  - Requires `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` secrets
+Система побудована на базі розподіленої архітектури:
 
-To set up deployment:
-1. Create a Docker Hub account
-2. Add repository secrets in GitHub:
-   - `DOCKERHUB_USERNAME`: Your Docker Hub username
-   - `DOCKERHUB_TOKEN`: Your Docker Hub access token
+* **Frontend:** React (Vite), TypeScript, Tailwind CSS.
+* **Backend:** ASP.NET Core 8 API, Entity Framework Core.
+* **Database:** MySQL 8.0.
+* **Infrastructure:** Docker & Docker Compose (контейнеризація), GitHub Actions (CI), Railway (Cloud Hosting).
+
+---
+
+## Системна архітектура
+
+Проєкт використовує **контейнеризовану мікросервісну архітектуру**. Кожен компонент ізольований у власному Docker-контейнері:
+
+1.  **`db`**: MySQL Server для надійного збереження даних.
+2.  **`backend`**: API на .NET, що містить бізнес-логіку та обробку запитів.
+3.  **`frontend`**: Клієнтський додаток на React для взаємодії з користувачем.
+
+
+
+---
+
+##  Локальний запуск (через Docker)
+
+Завдяки Docker, ви можете запустити весь проєкт (БД + Бекенд + Фронтенд) однією командою.
+
+### 1. Попередні вимоги
+Переконайтеся, що у вас встановлені:
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- Git
+
+### 2. Клонування та запуск
+Виконайте наступні команди у терміналі:
+
+```bash
+# Клонування репозиторію
+git clone [https://github.com/your-username/LoTaS.git](https://github.com/your-username/LoTaS.git)
+cd LoTaS
+
+# Запуск усіх сервісів
+docker-compose up -d --build
