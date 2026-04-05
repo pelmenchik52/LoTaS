@@ -13,6 +13,7 @@ services:
 
   # 2.  C# ASP.NET 
   backend:
+    image: animemakartur/lotas-backend
     build:
       context: ./back-end             
       dockerfile: Dockerfile
@@ -26,6 +27,7 @@ services:
 
   # 3.React (Vite)
   frontend:
+    image: animemakartur/lotas-frontend
     build:
       context: ./front-end                       
       dockerfile: Dockerfile
