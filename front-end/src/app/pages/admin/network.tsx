@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -10,6 +10,15 @@ import { MapPin, Plus, Edit, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { adminApi } from "../../../api/api";
 import type { WarehouseDto } from "../../../api/api";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+
+interface NominatimResult {
+  place_id: number;
+  display_name: string;
+  lat: string;
+  lon: string;
+}
 
 export default function AdminNetworkPage() {
   const [warehouses, setWarehouses] = useState<WarehouseDto[]>([]);
@@ -25,6 +34,123 @@ export default function AdminNetworkPage() {
     lat: "",
     lng: "",
   });
+
+  // Geocoding
+  const [addressSuggestions, setAddressSuggestions] = useState<NominatimResult[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [geocoding, setGeocoding] = useState(false);
+  const geocodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const addressWrapperRef = useRef<HTMLDivElement>(null);
+
+  // Map refs
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<L.Map | null>(null);
+  const markerRef = useRef<L.Marker | null>(null);
+
+  const placeMarkerOnMap = useCallback((lat: number, lng: number) => {
+    if (markerRef.current && mapRef.current) {
+      markerRef.current.setLatLng([lat, lng]);
+    } else if (mapRef.current) {
+      markerRef.current = L.marker([lat, lng]).addTo(mapRef.current);
+    }
+    mapRef.current?.setView([lat, lng], 14);
+  }, []);
+
+  // Initialize/destroy map when dialog opens/closes
+  useEffect(() => {
+    if (!isDialogOpen) {
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+        markerRef.current = null;
+      }
+      return;
+    }
+    // Small timeout to let dialog render the container
+    const timer = setTimeout(() => {
+      if (!mapContainerRef.current || mapRef.current) return;
+      const lat = formData.lat ? parseFloat(formData.lat) : 50.4501;
+      const lng = formData.lng ? parseFloat(formData.lng) : 30.5234;
+      const zoom = formData.lat && formData.lng ? 14 : 6;
+      mapRef.current = L.map(mapContainerRef.current).setView([lat, lng], zoom);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: '&copy; OpenStreetMap contributors',
+      }).addTo(mapRef.current);
+      if (formData.lat && formData.lng) {
+        markerRef.current = L.marker([lat, lng]).addTo(mapRef.current);
+      }
+      mapRef.current.on("click", (e: L.LeafletMouseEvent) => {
+        const { lat: clickLat, lng: clickLng } = e.latlng;
+        setFormData((prev) => ({
+          ...prev,
+          lat: clickLat.toFixed(6),
+          lng: clickLng.toFixed(6),
+        }));
+        if (markerRef.current && mapRef.current) {
+          markerRef.current.setLatLng([clickLat, clickLng]);
+        } else if (mapRef.current) {
+          markerRef.current = L.marker([clickLat, clickLng]).addTo(mapRef.current);
+        }
+      });
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [isDialogOpen]);
+
+  const geocodeAddress = useCallback(async (query: string) => {
+    if (query.length < 3) {
+      setAddressSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    setGeocoding(true);
+    try {
+      const params = new URLSearchParams({
+        q: query,
+        format: "json",
+        limit: "5",
+        countrycodes: "ua",
+      });
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?${params}`,
+        { headers: { "Accept-Language": "uk" } }
+      );
+      const data: NominatimResult[] = await res.json();
+      setAddressSuggestions(data);
+      setShowSuggestions(data.length > 0);
+    } catch {
+      setAddressSuggestions([]);
+    } finally {
+      setGeocoding(false);
+    }
+  }, []);
+
+  const handleAddressInput = (value: string) => {
+    setFormData((prev) => ({ ...prev, address: value }));
+    if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current);
+    geocodeTimerRef.current = setTimeout(() => geocodeAddress(value), 400);
+  };
+
+  const handleSelectSuggestion = (result: NominatimResult) => {
+    setFormData((prev) => ({
+      ...prev,
+      address: result.display_name,
+      lat: result.lat,
+      lng: result.lon,
+    }));
+    placeMarkerOnMap(parseFloat(result.lat), parseFloat(result.lon));
+    setShowSuggestions(false);
+    setAddressSuggestions([]);
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (addressWrapperRef.current && !addressWrapperRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Load warehouses on component mount
   useEffect(() => {
@@ -136,7 +262,7 @@ export default function AdminNetworkPage() {
               Додати склад
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle>{editingWarehouse ? "Редагувати склад" : "Новий склад"}</DialogTitle>
               <DialogDescription>Додавання або редагування складу</DialogDescription>
@@ -150,13 +276,34 @@ export default function AdminNetworkPage() {
                   placeholder="Склад 4 (Східний)"
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 relative" ref={addressWrapperRef}>
                 <Label>Адреса</Label>
-                <Input
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  placeholder="вул. Промислова, 15, Київ"
-                />
+                <div className="relative">
+                  <Input
+                    value={formData.address}
+                    onChange={(e) => handleAddressInput(e.target.value)}
+                    onFocus={() => addressSuggestions.length > 0 && setShowSuggestions(true)}
+                    placeholder="вул. Промислова, 15, Київ"
+                    autoComplete="off"
+                  />
+                  {geocoding && (
+                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                  )}
+                </div>
+                {showSuggestions && addressSuggestions.length > 0 && (
+                  <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border rounded-md shadow-lg max-h-48 overflow-y-auto">
+                    {addressSuggestions.map((s) => (
+                      <button
+                        key={s.place_id}
+                        type="button"
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+                        onClick={() => handleSelectSuggestion(s)}
+                      >
+                        {s.display_name}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -179,6 +326,16 @@ export default function AdminNetworkPage() {
                     placeholder="30.5234"
                   />
                 </div>
+              </div>
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  Розташування на карті
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Натисніть на карту або оберіть адресу для встановлення точки
+                </p>
+                <div className="h-[220px] w-full rounded-lg overflow-hidden border" ref={mapContainerRef} />
               </div>
               <Button onClick={handleSaveWarehouse} className="w-full" disabled={saving}>
                 {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}

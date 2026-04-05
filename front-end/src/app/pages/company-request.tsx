@@ -8,11 +8,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Textarea } from "../components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Badge } from "../components/ui/badge";
-import { Package, Plus, Send, Trash2, CheckCircle, MapPin } from "lucide-react";
+import { Package, Plus, Send, Trash2, CheckCircle, MapPin, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { companyRequestApi, type ProductDto } from "../../api";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+
+interface NominatimResult {
+    place_id: number;
+    display_name: string;
+    lat: string;
+    lon: string;
+}
 
 const urgencyLabels: Record<number, string> = { 1: "Нормальний", 2: "Підвищений", 3: "Критичний" };
 const urgencyColors: Record<number, string> = {
@@ -43,8 +50,14 @@ export default function CompanyRequestPage() {
     const mapRef = useRef<L.Map | null>(null);
     const markerRef = useRef<L.Marker | null>(null);
 
-    const handleMapClick = useCallback((e: L.LeafletMouseEvent) => {
-        const { lat, lng } = e.latlng;
+    // Geocoding
+    const [addressSuggestions, setAddressSuggestions] = useState<NominatimResult[]>([]);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const [geocoding, setGeocoding] = useState(false);
+    const geocodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const addressWrapperRef = useRef<HTMLDivElement>(null);
+
+    const placeMarker = useCallback((lat: number, lng: number) => {
         setDeliveryLat(lat);
         setDeliveryLng(lng);
         if (markerRef.current && mapRef.current) {
@@ -52,6 +65,64 @@ export default function CompanyRequestPage() {
         } else if (mapRef.current) {
             markerRef.current = L.marker([lat, lng]).addTo(mapRef.current);
         }
+        mapRef.current?.setView([lat, lng], 15);
+    }, []);
+
+    const handleMapClick = useCallback((e: L.LeafletMouseEvent) => {
+        placeMarker(e.latlng.lat, e.latlng.lng);
+    }, [placeMarker]);
+
+    const geocodeAddress = useCallback(async (query: string) => {
+        if (query.length < 3) {
+            setAddressSuggestions([]);
+            setShowSuggestions(false);
+            return;
+        }
+        setGeocoding(true);
+        try {
+            const params = new URLSearchParams({
+                q: query,
+                format: "json",
+                addressdetails: "1",
+                limit: "5",
+                countrycodes: "ua",
+            });
+            const res = await fetch(
+                `https://nominatim.openstreetmap.org/search?${params}`,
+                { headers: { "Accept-Language": "uk" } }
+            );
+            const data: NominatimResult[] = await res.json();
+            setAddressSuggestions(data);
+            setShowSuggestions(data.length > 0);
+        } catch {
+            setAddressSuggestions([]);
+        } finally {
+            setGeocoding(false);
+        }
+    }, []);
+
+    const handleAddressChange = (value: string) => {
+        setDeliveryAddress(value);
+        if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current);
+        geocodeTimerRef.current = setTimeout(() => geocodeAddress(value), 400);
+    };
+
+    const handleSelectSuggestion = (result: NominatimResult) => {
+        setDeliveryAddress(result.display_name);
+        placeMarker(parseFloat(result.lat), parseFloat(result.lon));
+        setShowSuggestions(false);
+        setAddressSuggestions([]);
+    };
+
+    // Close suggestions on outside click
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (addressWrapperRef.current && !addressWrapperRef.current.contains(e.target as Node)) {
+                setShowSuggestions(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
     useEffect(() => {
@@ -225,10 +296,32 @@ export default function CompanyRequestPage() {
                                     onChange={e => setEmail(e.target.value)} placeholder="info@company.ua" />
                             </div>
                         </div>
-                        <div className="space-y-2">
+                        <div className="space-y-2 relative" ref={addressWrapperRef}>
                             <Label htmlFor="address">Адреса доставки *</Label>
-                            <Input id="address" value={deliveryAddress}
-                                onChange={e => setDeliveryAddress(e.target.value)} placeholder="м. Київ, вул. Хрещатик, 1" />
+                            <div className="relative">
+                                <Input id="address" value={deliveryAddress}
+                                    onChange={e => handleAddressChange(e.target.value)}
+                                    onFocus={() => addressSuggestions.length > 0 && setShowSuggestions(true)}
+                                    placeholder="м. Київ, вул. Хрещатик, 1"
+                                    autoComplete="off" />
+                                {geocoding && (
+                                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                                )}
+                            </div>
+                            {showSuggestions && addressSuggestions.length > 0 && (
+                                <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border rounded-md shadow-lg max-h-60 overflow-y-auto">
+                                    {addressSuggestions.map((s) => (
+                                        <button
+                                            key={s.place_id}
+                                            type="button"
+                                            className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+                                            onClick={() => handleSelectSuggestion(s)}
+                                        >
+                                            {s.display_name}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </CardContent>
                 </Card>
@@ -241,7 +334,7 @@ export default function CompanyRequestPage() {
                             Точка доставки на карті *
                         </CardTitle>
                         <CardDescription>
-                            Натисніть на карту, щоб вказати точне місце доставки
+                            Введіть адресу для автоматичного пошуку або натисніть на карту
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
