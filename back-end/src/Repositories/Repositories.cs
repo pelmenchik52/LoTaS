@@ -577,3 +577,70 @@ public class AuditLogRepository
 		await _db.SaveChangesAsync();
 	}
 }
+
+public class CompanyRequestRepository
+{
+	private readonly AppDbContext _db;
+	public CompanyRequestRepository(AppDbContext db) { _db = db; }
+
+	private static CompanyRequestDto Map(CompanyRequest r) => new(
+		r.Id, r.CompanyName, r.ContactPerson,
+		r.Phone, r.Email, r.DeliveryAddress,
+		r.DeliveryLat, r.DeliveryLng,
+		r.Status, r.Urgency, r.Notes,
+		r.ManagerId, r.Manager?.Name,
+		r.CreatedAt,
+		r.Products.Select(p => new CompanyRequestProductDto(p.ProductId, p.Product?.Name, p.Quantity, p.Weight)).ToList()
+	);
+
+	public async Task<List<CompanyRequestDto>> GetAllAsync() =>
+		(await _db.CompanyRequests
+			.Include(r => r.Manager)
+			.Include(r => r.Products).ThenInclude(p => p.Product)
+			.OrderByDescending(r => r.Urgency).ThenByDescending(r => r.CreatedAt)
+			.ToListAsync()).Select(Map).ToList();
+
+	public async Task<CompanyRequestDto?> GetByIdAsync(int id)
+	{
+		var r = await _db.CompanyRequests
+			.Include(r => r.Manager)
+			.Include(r => r.Products).ThenInclude(p => p.Product)
+			.FirstOrDefaultAsync(r => r.Id == id);
+		return r == null ? null : Map(r);
+	}
+
+	public async Task<CompanyRequestDto?> CreateAsync(CreateCompanyRequestDto dto)
+	{
+		var req = new CompanyRequest
+		{
+			CompanyName = dto.CompanyName,
+			ContactPerson = dto.ContactPerson,
+			Phone = dto.Phone,
+			Email = dto.Email,
+			DeliveryAddress = dto.DeliveryAddress,
+			DeliveryLat = dto.DeliveryLat,
+			DeliveryLng = dto.DeliveryLng,
+			Notes = dto.Notes,
+			Urgency = dto.Urgency
+		};
+		foreach (var p in dto.Products)
+			req.Products.Add(new CompanyRequestProduct { ProductId = p.ProductId, Quantity = p.Quantity, Weight = p.Weight });
+		_db.CompanyRequests.Add(req);
+		await _db.SaveChangesAsync();
+		var created = await _db.CompanyRequests
+			.Include(r => r.Manager)
+			.Include(r => r.Products).ThenInclude(p => p.Product)
+			.FirstOrDefaultAsync(r => r.Id == req.Id);
+		return created == null ? null : Map(created);
+	}
+
+	public async Task<bool> UpdateStatusAsync(int id, UpdateCompanyRequestStatusDto dto)
+	{
+		var r = await _db.CompanyRequests.FindAsync(id);
+		if (r == null) return false;
+		r.Status = dto.Status;
+		if (dto.ManagerId.HasValue) r.ManagerId = dto.ManagerId;
+		await _db.SaveChangesAsync();
+		return true;
+	}
+}

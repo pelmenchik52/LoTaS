@@ -12,6 +12,10 @@ import AdminInventoryPage from "./pages/admin/inventory";
 import ManagerRoutesPage from "./pages/manager/routes";
 import ManagerCostsPage from "./pages/manager/costs";
 import ManagerMonitoringPage from "./pages/manager/monitoring";
+import ManagerCompanyRequestsPage from "./pages/manager/company-requests";
+
+// Публічна сторінка
+import CompanyRequestPage from "./pages/company-request";
 
 // Комірник
 import WarehouseSelectPage from "./pages/warehouse/select";
@@ -29,11 +33,19 @@ import AccountantArchivePage from "./pages/accountant/archive";
 
 export const router = createBrowserRouter([
   {
+    path: "/",
+    Component: CompanyRequestPage,
+  },
+  {
     path: "/login",
     Component: LoginPage,
   },
   {
-    path: "/",
+    path: "/request",
+    Component: CompanyRequestPage,
+  },
+  {
+    path: "/app",
     Component: Layout,
     children: [
       // Адміністратор
@@ -46,6 +58,7 @@ export const router = createBrowserRouter([
       { path: "manager/routes", Component: ManagerRoutesPage },
       { path: "manager/costs", Component: ManagerCostsPage },
       { path: "manager/monitoring", Component: ManagerMonitoringPage },
+      { path: "manager/company-requests", Component: ManagerCompanyRequestsPage },
       
       // Комірник
       { path: "warehouse/select", Component: WarehouseSelectPage },

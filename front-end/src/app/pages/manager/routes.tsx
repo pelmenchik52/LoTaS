@@ -32,12 +32,13 @@ import {
   Clock,
 } from "lucide-react";
 import { toast } from "sonner";
-import { managerApi, warehouseApi } from "../../../api";
+import { managerApi, warehouseApi, companyRequestApi } from "../../../api";
 import type {
   DriverDto,
   VehicleDto,
   DeliveryRequestDto,
   WarehouseDto,
+  CompanyRequestDto,
 } from "../../../api";
 import { MapComponent } from "../../components/map-component";
 
@@ -48,6 +49,7 @@ export default function ManagerRoutesPage() {
   const [drivers, setDrivers] = useState<DriverDto[]>([]);
   const [vehicles, setVehicles] = useState<VehicleDto[]>([]);
   const [requests, setRequests] = useState<DeliveryRequestDto[]>([]);
+  const [companyRequests, setCompanyRequests] = useState<CompanyRequestDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -59,10 +61,15 @@ export default function ManagerRoutesPage() {
   const [selectedRequestIds, setSelectedRequestIds] = useState<Set<number>>(
     new Set()
   );
+  const [selectedCompanyIds, setSelectedCompanyIds] = useState<Set<number>>(
+    new Set()
+  );
 
   // detail dialog
   const [detailRequest, setDetailRequest] =
     useState<DeliveryRequestDto | null>(null);
+  const [detailCompanyRequest, setDetailCompanyRequest] =
+    useState<CompanyRequestDto | null>(null);
 
   /* ── data loading ──────────────────────────────────────────────── */
 
@@ -73,17 +80,19 @@ export default function ManagerRoutesPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [warehousesData, driversData, vehiclesData, requestsData] =
+      const [warehousesData, driversData, vehiclesData, requestsData, companyData] =
         await Promise.all([
           warehouseApi.getWarehouses(),
           managerApi.getDrivers(),
           managerApi.getVehicles(),
           managerApi.getRequests(),
+          companyRequestApi.getAll(),
         ]);
       setWarehouses(warehousesData);
       setDrivers(driversData);
       setVehicles(vehiclesData);
       setRequests(requestsData);
+      setCompanyRequests(companyData);
     } catch {
       toast.error("Помилка завантаження даних");
     } finally {
@@ -98,6 +107,9 @@ export default function ManagerRoutesPage() {
   );
 
   const pendingRequests = requests.filter((r) => r.status === "pending");
+  const pendingCompanyRequests = companyRequests.filter(
+    (r) => r.status === "new" || r.status === "approved" || r.status === "processing"
+  );
 
   const availableDrivers = drivers.filter((d) => d.active && !d.isBusy);
   const availableVehicles = vehicles.filter((v) => v.active);
@@ -139,8 +151,23 @@ export default function ManagerRoutesPage() {
                 }
             });
 
+        pendingCompanyRequests
+            .filter((r) => selectedCompanyIds.has(r.id))
+            .forEach((r) => {
+                if (r.deliveryLat != null && r.deliveryLng != null) {
+                    pts.push({
+                        id: `cr-${r.id}`,
+                        name: r.companyName,
+                        address: r.deliveryAddress,
+                        lat: r.deliveryLat,
+                        lng: r.deliveryLng,
+                        priority: r.urgency,
+                    });
+                }
+            });
+
         return pts;
-    }, [selectedWarehouse, selectedRequestIds, pendingRequests, warehouses]);
+    }, [selectedWarehouse, selectedRequestIds, selectedCompanyIds, pendingRequests, pendingCompanyRequests, warehouses]);
 
   /* ── handlers ──────────────────────────────────────────────────── */
 
@@ -153,12 +180,29 @@ export default function ManagerRoutesPage() {
     });
   };
 
+  const handleToggleCompanyRequest = (id: number) => {
+    setSelectedCompanyIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   const handleCreateRoute = async () => {
     if (!selectedWarehouse) {
       toast.error("Оберіть склад відправлення");
       return;
     }
-    if (selectedRequestIds.size === 0) {
+    if (!selectedDriverId) {
+      toast.error("Оберіть водія");
+      return;
+    }
+    if (!selectedVehicleId) {
+      toast.error("Оберіть транспорт");
+      return;
+    }
+    if (selectedRequestIds.size === 0 && selectedCompanyIds.size === 0) {
       toast.error("Оберіть хоча б одну точку доставки");
       return;
     }
@@ -167,9 +211,16 @@ export default function ManagerRoutesPage() {
       const selected = pendingRequests.filter((r) =>
         selectedRequestIds.has(r.id)
       );
+      const selectedCompany = pendingCompanyRequests.filter((r) =>
+        selectedCompanyIds.has(r.id)
+      );
+      const toNames = [
+        ...selected.map((r) => r.warehouseName),
+        ...selectedCompany.map((r) => `${r.companyName} (${r.deliveryAddress})`),
+      ].join(", ");
       await managerApi.createRoute({
         from: selectedWarehouse.name,
-        to: selected.map((r) => r.warehouseName).join(", "),
+        to: toNames,
         distance: 0,
         estimatedTime: 0,
         driverId: selectedDriverId ? Number(selectedDriverId) : undefined,
@@ -178,6 +229,7 @@ export default function ManagerRoutesPage() {
       });
       toast.success("Маршрут створено");
       setSelectedRequestIds(new Set());
+      setSelectedCompanyIds(new Set());
       await loadData();
     } catch {
       toast.error("Помилка створення маршруту");
@@ -354,13 +406,60 @@ export default function ManagerRoutesPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {pendingRequests.length === 0 ? (
+              {pendingRequests.length === 0 && pendingCompanyRequests.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
                   <Package className="h-10 w-10 mb-2 opacity-30" />
                   <p>Немає запитів на доставку</p>
                 </div>
               ) : (
                 <div className="space-y-3">
+                  {pendingCompanyRequests.map((req) => (
+                    <div
+                      key={`cr-${req.id}`}
+                      className="flex items-start gap-3 border rounded-lg p-4"
+                    >
+                      <Checkbox
+                        checked={selectedCompanyIds.has(req.id)}
+                        onCheckedChange={() => handleToggleCompanyRequest(req.id)}
+                        className="mt-1"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-semibold">
+                            {req.companyName}
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="shrink-0">
+                              Компанія
+                            </Badge>
+                            <Badge
+                              variant="destructive"
+                              className="shrink-0"
+                            >
+                              Пріоритет: {req.urgency}
+                            </Badge>
+                          </div>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-0.5">
+                          {req.deliveryAddress}
+                        </p>
+                        <div className="flex items-center gap-3 mt-1.5 text-sm text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Package className="h-3.5 w-3.5" />
+                            {req.products.length} товарів
+                          </span>
+                          <span>{req.contactPerson} · {req.phone}</span>
+                          <button
+                            type="button"
+                            className="text-primary hover:underline"
+                            onClick={() => setDetailCompanyRequest(req)}
+                          >
+                            Деталі
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                   {pendingRequests.map((req) => (
                     <div
                       key={req.id}
@@ -451,6 +550,80 @@ export default function ManagerRoutesPage() {
                 </Label>
                 <div className="mt-2 space-y-2 max-h-60 overflow-y-auto">
                   {detailRequest.products.map((p, idx) => (
+                    <div
+                      key={idx}
+                      className="flex justify-between items-center border rounded-lg p-3"
+                    >
+                      <span className="font-medium text-sm">
+                        {p.productName || `Товар ${p.productId}`}
+                      </span>
+                      <span className="text-sm text-muted-foreground">
+                        {p.quantity} од. · {p.weight} кг
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Company request detail dialog ────────────────────────── */}
+      <Dialog
+        open={!!detailCompanyRequest}
+        onOpenChange={(open) => !open && setDetailCompanyRequest(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Запит від компанії #{detailCompanyRequest?.id}
+            </DialogTitle>
+          </DialogHeader>
+          {detailCompanyRequest && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-muted/50 rounded-lg p-3">
+                  <p className="text-xs text-muted-foreground">Компанія</p>
+                  <p className="font-medium">{detailCompanyRequest.companyName}</p>
+                </div>
+                <div className="bg-muted/50 rounded-lg p-3">
+                  <p className="text-xs text-muted-foreground">Контакт</p>
+                  <p className="font-medium">{detailCompanyRequest.contactPerson}</p>
+                </div>
+                <div className="bg-muted/50 rounded-lg p-3">
+                  <p className="text-xs text-muted-foreground">Телефон</p>
+                  <p className="font-medium">{detailCompanyRequest.phone}</p>
+                </div>
+                <div className="bg-muted/50 rounded-lg p-3">
+                  <p className="text-xs text-muted-foreground">Email</p>
+                  <p className="font-medium">{detailCompanyRequest.email}</p>
+                </div>
+                <div className="bg-muted/50 rounded-lg p-3 col-span-2">
+                  <p className="text-xs text-muted-foreground">Адреса доставки</p>
+                  <p className="font-medium">{detailCompanyRequest.deliveryAddress}</p>
+                </div>
+                <div className="bg-muted/50 rounded-lg p-3">
+                  <p className="text-xs text-muted-foreground">Терміновість</p>
+                  <p className="font-medium">{detailCompanyRequest.urgency === 3 ? "Критичний" : detailCompanyRequest.urgency === 2 ? "Підвищений" : "Нормальний"}</p>
+                </div>
+                <div className="bg-muted/50 rounded-lg p-3">
+                  <p className="text-xs text-muted-foreground">Товарів</p>
+                  <p className="font-medium">{detailCompanyRequest.products.length}</p>
+                </div>
+              </div>
+              {detailCompanyRequest.notes && (
+                <div className="bg-muted/50 rounded-lg p-3">
+                  <p className="text-xs text-muted-foreground">Примітки</p>
+                  <p className="font-medium">{detailCompanyRequest.notes}</p>
+                </div>
+              )}
+              <div>
+                <Label className="text-xs text-muted-foreground">
+                  Список товарів
+                </Label>
+                <div className="mt-2 space-y-2 max-h-60 overflow-y-auto">
+                  {detailCompanyRequest.products.map((p, idx) => (
                     <div
                       key={idx}
                       className="flex justify-between items-center border rounded-lg p-3"

@@ -199,3 +199,34 @@ public class AuditLog
     public DateTime Timestamp { get; set; } = DateTime.UtcNow;
     public string IpAddress { get; set; } = "";
 }
+
+public class CompanyRequest
+{
+    public int Id { get; set; }
+    public string CompanyName { get; set; } = "";
+    public string ContactPerson { get; set; } = "";
+    public string Phone { get; set; } = "";
+    public string Email { get; set; } = "";
+    public string DeliveryAddress { get; set; } = "";
+    public double DeliveryLat { get; set; }
+    public double DeliveryLng { get; set; }
+    public string Status { get; set; } = "new"; // new | processing | approved | rejected | completed
+    public int Urgency { get; set; } = 1; // 1=normal, 2=high, 3=critical
+    public string? Notes { get; set; }
+    public int? ManagerId { get; set; }
+    public User? Manager { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    public ICollection<CompanyRequestProduct> Products { get; set; } = new List<CompanyRequestProduct>();
+}
+
+public class CompanyRequestProduct
+{
+    public int Id { get; set; }
+    public int CompanyRequestId { get; set; }
+    public CompanyRequest CompanyRequest { get; set; } = null!;
+    public int ProductId { get; set; }
+    public Product Product { get; set; } = null!;
+    public double Quantity { get; set; }
+    public double Weight { get; set; }
+}

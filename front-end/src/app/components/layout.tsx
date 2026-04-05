@@ -27,7 +27,8 @@ import {
   DollarSign,
   AlertCircle,
   PackageSearch,
-  Archive
+  Archive,
+  Building2
 } from "lucide-react";
 
 type UserRole = "admin" | "manager" | "warehouse" | "accountant";
@@ -41,29 +42,30 @@ interface MenuItem {
 
 const menuItems: MenuItem[] = [
   // Адміністратор
-  { icon: Users, label: "Користувачі та Права", path: "/admin/users", roles: ["admin"] },
-  { icon: Network, label: "Структура мережі", path: "/admin/network", roles: ["admin"] },
-  { icon: PackageSearch, label: "Управління складом", path: "/admin/inventory", roles: ["admin"] },
-  { icon: FileText, label: "Аудит системи", path: "/admin/audit", roles: ["admin"] },
+  { icon: Users, label: "Користувачі та Права", path: "/app/admin/users", roles: ["admin"] },
+  { icon: Network, label: "Структура мережі", path: "/app/admin/network", roles: ["admin"] },
+  { icon: PackageSearch, label: "Управління складом", path: "/app/admin/inventory", roles: ["admin"] },
+  { icon: FileText, label: "Аудит системи", path: "/app/admin/audit", roles: ["admin"] },
   
   // Менеджер
-  { icon: Route, label: "Планування маршрутів", path: "/manager/routes", roles: ["manager"] },
-  { icon: Calculator, label: "Калькулятор витрат", path: "/manager/costs", roles: ["manager"] },
-  { icon: Monitor, label: "Моніторинг виконання", path: "/manager/monitoring", roles: ["manager"] },
+  { icon: Route, label: "Планування маршрутів", path: "/app/manager/routes", roles: ["manager"] },
+  { icon: Calculator, label: "Калькулятор витрат", path: "/app/manager/costs", roles: ["manager"] },
+  { icon: Monitor, label: "Моніторинг виконання", path: "/app/manager/monitoring", roles: ["manager"] },
+  { icon: Building2, label: "Запити від компаній", path: "/app/manager/company-requests", roles: ["manager"] },
   
   // Комірник
-  { icon: Warehouse, label: "Вибір складу", path: "/warehouse/select", roles: ["warehouse"] },
-  { icon: Box, label: "Складські залишки", path: "/warehouse/stock", roles: ["warehouse"] },
-  { icon: ArrowDownToLine, label: "Прийом товарів", path: "/warehouse/receiving", roles: ["warehouse"] },
-  { icon: ArrowUpFromLine, label: "Відвантаження", path: "/warehouse/shipping", roles: ["warehouse"] },
-  { icon: TruckIcon, label: "Запити доставки", path: "/warehouse/requests", roles: ["warehouse"] },
-  { icon: ClipboardCheck, label: "Ревізія", path: "/warehouse/audit", roles: ["warehouse"] },
+  { icon: Warehouse, label: "Вибір складу", path: "/app/warehouse/select", roles: ["warehouse"] },
+  { icon: Box, label: "Складські залишки", path: "/app/warehouse/stock", roles: ["warehouse"] },
+  { icon: ArrowDownToLine, label: "Прийом товарів", path: "/app/warehouse/receiving", roles: ["warehouse"] },
+  { icon: ArrowUpFromLine, label: "Відвантаження", path: "/app/warehouse/shipping", roles: ["warehouse"] },
+  { icon: TruckIcon, label: "Запити доставки", path: "/app/warehouse/requests", roles: ["warehouse"] },
+  { icon: ClipboardCheck, label: "Ревізія", path: "/app/warehouse/audit", roles: ["warehouse"] },
   
   // Бухгалтер
-  { icon: BarChart3, label: "Звітність по доставках", path: "/accountant/reports", roles: ["accountant"] },
-  { icon: DollarSign, label: "Аналіз витрат", path: "/accountant/costs", roles: ["accountant"] },
-  { icon: AlertCircle, label: "Акти розбіжностей", path: "/accountant/discrepancies", roles: ["accountant"] },
-  { icon: Archive, label: "Архів операцій", path: "/accountant/archive", roles: ["accountant"] },
+  { icon: BarChart3, label: "Звітність по доставках", path: "/app/accountant/reports", roles: ["accountant"] },
+  { icon: DollarSign, label: "Аналіз витрат", path: "/app/accountant/costs", roles: ["accountant"] },
+  { icon: AlertCircle, label: "Акти розбіжностей", path: "/app/accountant/discrepancies", roles: ["accountant"] },
+  { icon: Archive, label: "Архів операцій", path: "/app/accountant/archive", roles: ["accountant"] },
 ];
 
 const roleInfo = {
@@ -83,7 +85,7 @@ export default function Layout() {
   useEffect(() => {
     const storedRole = localStorage.getItem("userRole") as UserRole;
     if (!storedRole) {
-      navigate("/login");
+      navigate("/login", { replace: true });
     } else {
       setUserRole(storedRole);
     }
@@ -91,7 +93,7 @@ export default function Layout() {
 
   const handleLogout = () => {
     localStorage.removeItem("userRole");
-    navigate("/login");
+    navigate("/");
   };
 
   const filteredMenuItems = menuItems.filter(item => item.roles.includes(userRole));
