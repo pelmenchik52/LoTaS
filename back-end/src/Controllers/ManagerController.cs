@@ -57,8 +57,9 @@ public class ManagerController : ControllerBase
     [HttpPut("routes/{id}/status")]
     public async Task<IActionResult> UpdateRouteStatus(int id, [FromBody] UpdateRouteStatusDto dto)
     {
-        var ok = await _routes.UpdateStatusAsync(id, dto.Status);
-        if (!ok) return NotFound();
+        var (ok, error) = await _routes.UpdateStatusAsync(id, dto.Status);
+        if (!ok && error == null) return NotFound();
+        if (!ok) return BadRequest(new { message = error });
         await _audit.AddAsync(CurrentUserId, "Оновлення статусу", "Route", $"Маршрут id={id} → {dto.Status}", CurrentIp);
         return Ok(new { message = "Статус оновлено" });
     }

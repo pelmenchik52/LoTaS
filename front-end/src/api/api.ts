@@ -358,6 +358,12 @@ export const warehouseApi = {
     getTransactions: (warehouseId: number) =>
         get<TransactionDto[]>(`/warehouse/${warehouseId}/transactions`),
     createTransaction: (data: object) => post<void>("/warehouse/transactions", data),
+
+    getRoutes: () => get<RouteDto[]>("/warehouse/routes"),
+    updateOrderStatus: (id: number, status: string) =>
+        put<void>(`/warehouse/orders/${id}/status`, { status }),
+    updateRequestStatus: (id: number, status: string) =>
+        put<void>(`/warehouse/requests/${id}/status`, { status }),
 };
 
 // ─── Accountant API ───────────────────────────────────────────────────────────

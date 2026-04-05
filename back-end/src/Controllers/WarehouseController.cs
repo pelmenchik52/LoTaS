@@ -19,16 +19,19 @@ public class WarehouseController : ControllerBase
     private readonly TransactionArchiveRepository _transactions;
     private readonly InventoryService _inventoryService;
     private readonly AuditLogRepository _audit;
+    private readonly RouteRepository _routes;
+    private readonly OrderRepository _orders;
 
     public WarehouseController(
         WarehouseStockRepository stock, WarehouseRepository warehouses,
         ProductRepository products, DeliveryRequestRepository requests,
         TransactionArchiveRepository transactions, InventoryService inventoryService,
-        AuditLogRepository audit)
+        AuditLogRepository audit, RouteRepository routes, OrderRepository orders)
     {
         _stock = stock; _warehouses = warehouses; _products = products;
         _requests = requests; _transactions = transactions;
         _inventoryService = inventoryService; _audit = audit;
+        _routes = routes; _orders = orders;
     }
 
     private int CurrentUserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -77,6 +80,28 @@ public class WarehouseController : ControllerBase
         await _audit.AddAsync(CurrentUserId, "Запит доставки", "DeliveryRequest",
             $"Створено запит для складу id={dto.WarehouseId}, терміновість={dto.Urgency}", CurrentIp);
         return Ok(result);
+    }
+
+    // Routes (for shipping page)
+    [HttpGet("routes")]
+    public async Task<IActionResult> GetRoutes() => Ok(await _routes.GetAllAsync());
+
+    // Update delivery request status
+    [HttpPut("requests/{id}/status")]
+    public async Task<IActionResult> UpdateRequestStatus(int id, [FromBody] UpdateDeliveryRequestStatusDto dto)
+    {
+        var ok = await _requests.UpdateStatusAsync(id, dto);
+        if (!ok) return NotFound();
+        return Ok(new { message = "Статус запиту оновлено" });
+    }
+
+    // Update order status
+    [HttpPut("orders/{id}/status")]
+    public async Task<IActionResult> UpdateOrderStatus(int id, [FromBody] UpdateOrderStatusDto dto)
+    {
+        var ok = await _orders.UpdateStatusAsync(id, dto.Status);
+        if (!ok) return NotFound();
+        return Ok(new { message = "Статус замовлення оновлено" });
     }
 
     // Transactions (receiving/shipping)

@@ -396,6 +396,48 @@ public class RouteRepository
 
 	public async Task<RouteDto?> CreateAsync(CreateRouteDto dto)
 	{
+		// Lookup vehicle & driver for cost calculation
+		decimal fuelCost = 0;
+		decimal driverSalary = 0;
+
+		Vehicle? vehicle = null;
+		if (dto.VehicleId.HasValue)
+		{
+			vehicle = await _db.Vehicles.FindAsync(dto.VehicleId.Value);
+			if (vehicle != null && dto.FuelPrice.HasValue && dto.Distance > 0)
+			{
+				var fuelLiters = (dto.Distance / 100.0) * vehicle.FuelConsumption;
+				fuelCost = (decimal)(fuelLiters * dto.FuelPrice.Value);
+			}
+
+			// Auto-attach free trailer if vehicle has none
+			if (vehicle != null && !vehicle.TrailerId.HasValue)
+			{
+				var usedTrailerIds = await _db.Vehicles
+					.Where(v => v.TrailerId.HasValue && v.Active)
+					.Select(v => v.TrailerId!.Value)
+					.ToListAsync();
+				var freeTrailer = await _db.Trailers
+					.Where(t => t.Active && !usedTrailerIds.Contains(t.Id))
+					.FirstOrDefaultAsync();
+				if (freeTrailer != null)
+					vehicle.TrailerId = freeTrailer.Id;
+			}
+		}
+
+		Driver? driver = null;
+		if (dto.DriverId.HasValue)
+		{
+			driver = await _db.Drivers.FindAsync(dto.DriverId.Value);
+			if (driver != null)
+			{
+				if (dto.EstimatedTime > 0)
+					driverSalary = driver.HourlyRate * (decimal)dto.EstimatedTime;
+				// Mark driver as busy immediately
+				driver.IsBusy = true;
+			}
+		}
+
 		var route = new Route
 		{
 			From = dto.From,
@@ -403,7 +445,10 @@ public class RouteRepository
 			Distance = dto.Distance,
 			EstimatedTime = dto.EstimatedTime,
 			DriverId = dto.DriverId,
-			VehicleId = dto.VehicleId
+			VehicleId = dto.VehicleId,
+			FuelCost = fuelCost,
+			DriverSalary = driverSalary,
+			TotalCost = fuelCost + driverSalary,
 		};
 		foreach (var o in dto.Orders)
 		{
@@ -417,20 +462,31 @@ public class RouteRepository
 		return await GetByIdAsync(route.Id);
 	}
 
-	public async Task<bool> UpdateStatusAsync(int id, string status)
+	public async Task<(bool success, string? error)> UpdateStatusAsync(int id, string status)
 	{
-		var r = await _db.Routes.FindAsync(id);
-		if (r == null) return false;
+		var r = await _db.Routes
+			.Include(r => r.Orders)
+			.FirstOrDefaultAsync(r => r.Id == id);
+		if (r == null) return (false, null);
+
+		// Block "in-progress" if orders haven't been shipped yet
+		if (status == "in-progress" && r.Status == "assigned")
+		{
+			var pendingOrders = r.Orders.Count(o => o.Status != "shipped");
+			if (pendingOrders > 0)
+				return (false, $"Неможливо відправити: {pendingOrders} замовлень ще не відвантажено на складі");
+		}
+
 		r.Status = status;
-		// If driver is marked busy/free based on route status
+		// Mark driver busy/free based on route status
 		if (r.DriverId.HasValue)
 		{
 			var driver = await _db.Drivers.FindAsync(r.DriverId.Value);
 			if (driver != null)
-				driver.IsBusy = status == "in-progress";
+				driver.IsBusy = status != "completed" && status != "cancelled";
 		}
 		await _db.SaveChangesAsync();
-		return true;
+		return (true, null);
 	}
 
 	public async Task<bool> DeleteAsync(int id)
@@ -455,6 +511,15 @@ public class OrderRepository
 				o.Id, o.RouteId, o.From, o.To, o.Status, o.Urgency,
 				o.OrderProducts.Select(op => new OrderProductDto(op.ProductId, op.Product.Name, op.Quantity, op.Weight)).ToList()
 			)).ToListAsync();
+
+	public async Task<bool> UpdateStatusAsync(int id, string status)
+	{
+		var order = await _db.Orders.FindAsync(id);
+		if (order == null) return false;
+		order.Status = status;
+		await _db.SaveChangesAsync();
+		return true;
+	}
 }
 
 public class DeliveryRequestRepository

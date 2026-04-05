@@ -35,18 +35,11 @@ namespace LogisticsBackend.Migrations
                     Urgency = table.Column<int>(type: "int", nullable: false),
                     Status = table.Column<string>(type: "longtext", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    ManagerId = table.Column<int>(type: "int", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_CompanyRequests", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_CompanyRequests_Users_ManagerId",
-                        column: x => x.ManagerId,
-                        principalTable: "Users",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.SetNull);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -88,11 +81,6 @@ namespace LogisticsBackend.Migrations
                 name: "IX_CompanyRequestProducts_ProductId",
                 table: "CompanyRequestProducts",
                 column: "ProductId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_CompanyRequests_ManagerId",
-                table: "CompanyRequests",
-                column: "ManagerId");
         }
 
         /// <inheritdoc />

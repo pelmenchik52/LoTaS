@@ -6,7 +6,7 @@ import { Badge } from "../../components/ui/badge";
 import { Progress } from "../../components/ui/progress";
 import { ArrowUpFromLine, Package, Truck, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
-import { authApi, managerApi, warehouseApi, type RouteDto, type OrderDto } from "../../../api";
+import { authApi, warehouseApi, type RouteDto, type OrderDto } from "../../../api";
 import { WarehouseSelector } from "../../components/warehouse-selector";
 
 interface ShippingOrder extends OrderDto {
@@ -37,7 +37,7 @@ export default function WarehouseShippingPage() {
         setWarehouseName(wh.name);
 
         // Get routes and filter orders for this warehouse
-        const routes = await managerApi.getRoutes();
+        const routes = await warehouseApi.getRoutes();
         const shippingOrders: ShippingOrder[] = [];
 
         for (const route of routes) {
@@ -106,8 +106,11 @@ export default function WarehouseShippingPage() {
         });
       }
 
+      // Update order status in backend
+      await warehouseApi.updateOrderStatus(orderId, "shipped");
+
       setOrders(prev => prev.map(o =>
-        o.id === orderId ? { ...o, status: "completed" } : o
+        o.id === orderId ? { ...o, status: "shipped" } : o
       ));
       toast.success("Відвантаження завершено, машина може виїжджати");
     } catch (err) {
@@ -116,7 +119,7 @@ export default function WarehouseShippingPage() {
   };
 
   const pendingOrders = orders.filter(o => o.status === "pending").length;
-  const completedToday = orders.filter(o => o.status === "completed").length;
+  const completedToday = orders.filter(o => o.status === "shipped").length;
 
   const getOrderProgress = (order: ShippingOrder) => {
     const totalProducts = order.products.length;

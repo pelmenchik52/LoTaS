@@ -73,6 +73,9 @@ export default function WarehouseReceivingPage() {
         });
       }
 
+      // Persist status to backend
+      await warehouseApi.updateRequestStatus(requestId, "completed");
+
       setRequests((prev) => prev.map((item) =>
         item.id === requestId ? { ...item, status: "completed", products: item.products } : item
       ));
@@ -187,12 +190,15 @@ export default function WarehouseReceivingPage() {
                               <div className="flex items-center gap-2">
                                 <Input
                                   type="number"
+                                  min={0}
+                                  max={product.quantity}
                                   value={product.receivedQuantity || ""}
-                                  onChange={(e) => handleReceiveProduct(
-                                    request.id,
-                                    product.productId,
-                                    parseInt(e.target.value) || 0
-                                  )}
+                                  onChange={(e) => {
+                                    let val = parseInt(e.target.value) || 0;
+                                    if (val < 0) val = 0;
+                                    if (val > product.quantity) val = product.quantity;
+                                    handleReceiveProduct(request.id, product.productId, val);
+                                  }}
                                   className="w-24"
                                   placeholder="0"
                                   disabled={request.status === "completed"}

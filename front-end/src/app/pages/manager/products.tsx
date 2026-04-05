@@ -68,18 +68,22 @@ export default function ManagerProductsPage() {
     };
 
     const handleSave = async () => {
-        if (!form.name || !form.type || !form.weight || !form.urgencyCoefficient) {
-            toast.error("Заповніть обов'язкові поля");
-            return;
-        }
+        if (!form.name.trim()) { toast.error("Вкажіть назву товару"); return; }
+        if (!form.type) { toast.error("Оберіть тип товару"); return; }
+        const weight = parseFloat(form.weight);
+        if (!form.weight || isNaN(weight) || weight <= 0) { toast.error("Вага має бути більше 0"); return; }
+        const urgency = parseInt(form.urgencyCoefficient);
+        if (!form.urgencyCoefficient || isNaN(urgency) || urgency < 1 || urgency > 10) { toast.error("Терміновість має бути від 1 до 10"); return; }
+        const expirationDays = form.expirationDays ? parseInt(form.expirationDays) : undefined;
+        if (expirationDays !== undefined && (isNaN(expirationDays) || expirationDays < 1)) { toast.error("Термін придатності має бути більше 0"); return; }
         try {
             setSaving(true);
             const data = {
-                name: form.name,
+                name: form.name.trim(),
                 type: form.type,
-                weight: parseFloat(form.weight),
-                urgencyCoefficient: parseInt(form.urgencyCoefficient),
-                expirationDays: form.expirationDays ? parseInt(form.expirationDays) : undefined,
+                weight,
+                urgencyCoefficient: urgency,
+                expirationDays,
                 active: true,
             };
             if (editingProduct) {
@@ -197,19 +201,37 @@ export default function ManagerProductsPage() {
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="space-y-2">
                                                 <Label>Вага (кг) *</Label>
-                                                <Input type="number" step="0.1" value={form.weight}
-                                                    onChange={e => setForm({ ...form, weight: e.target.value })} placeholder="1.0" />
+                                                <Input type="number" step="0.1" min="0.01" value={form.weight}
+                                                    onChange={e => {
+                                                        const v = e.target.value;
+                                                        if (v === "" || v === "0.") { setForm({ ...form, weight: v }); return; }
+                                                        const n = parseFloat(v);
+                                                        if (isNaN(n)) return;
+                                                        setForm({ ...form, weight: n <= 0 ? "0.1" : v });
+                                                    }} placeholder="1.0" />
                                             </div>
                                             <div className="space-y-2">
                                                 <Label>Терміновість (1-10) *</Label>
                                                 <Input type="number" min="1" max="10" value={form.urgencyCoefficient}
-                                                    onChange={e => setForm({ ...form, urgencyCoefficient: e.target.value })} placeholder="5" />
+                                                    onChange={e => {
+                                                        const v = e.target.value;
+                                                        if (v === "") { setForm({ ...form, urgencyCoefficient: "" }); return; }
+                                                        const n = parseInt(v);
+                                                        if (isNaN(n)) return;
+                                                        setForm({ ...form, urgencyCoefficient: String(Math.min(10, Math.max(1, n))) });
+                                                    }} placeholder="5" />
                                             </div>
                                         </div>
                                         <div className="space-y-2">
                                             <Label>Термін придатності (днів)</Label>
-                                            <Input type="number" value={form.expirationDays}
-                                                onChange={e => setForm({ ...form, expirationDays: e.target.value })} placeholder="Опціонально" />
+                                            <Input type="number" min="1" value={form.expirationDays}
+                                                onChange={e => {
+                                                    const v = e.target.value;
+                                                    if (v === "") { setForm({ ...form, expirationDays: "" }); return; }
+                                                    const n = parseInt(v);
+                                                    if (isNaN(n)) return;
+                                                    setForm({ ...form, expirationDays: n < 1 ? "1" : v });
+                                                }} placeholder="Опціонально" />
                                         </div>
                                         <Button onClick={handleSave} className="w-full" disabled={saving}>
                                             {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}

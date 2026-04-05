@@ -4,12 +4,13 @@ import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
-import { Truck, Clock, CheckCircle, AlertTriangle, XCircle, RefreshCw } from "lucide-react";
+import { Truck, Clock, CheckCircle, AlertTriangle, XCircle, RefreshCw, PackageCheck } from "lucide-react";
 import { toast } from "sonner";
 import { managerApi, type RouteDto, type DeliveryRequestDto } from "../../../api";
 
 const routeStatusConfig: Record<string, { label: string; icon: any; color: string }> = {
     planned: { label: "Заплановано", icon: Clock, color: "text-blue-600 border-blue-600" },
+    assigned: { label: "Призначено (відвантаження)", icon: PackageCheck, color: "text-purple-600 border-purple-600" },
     "in-progress": { label: "В дорозі", icon: Truck, color: "text-orange-600 border-orange-600" },
     completed: { label: "Завершено", icon: CheckCircle, color: "text-green-600 border-green-600" },
     cancelled: { label: "Скасовано", icon: XCircle, color: "text-red-600 border-red-600" },
@@ -142,6 +143,7 @@ export default function ManagerMonitoringPage() {
                         <SelectContent>
                             <SelectItem value="all">Всі статуси</SelectItem>
                             <SelectItem value="planned">Заплановані</SelectItem>
+                            <SelectItem value="assigned">Призначені</SelectItem>
                             <SelectItem value="in-progress">В дорозі</SelectItem>
                             <SelectItem value="completed">Завершені</SelectItem>
                             <SelectItem value="cancelled">Скасовані</SelectItem>
@@ -157,6 +159,8 @@ export default function ManagerMonitoringPage() {
                                         <TableHead>Маршрут</TableHead>
                                         <TableHead className="hidden md:table-cell">Водій</TableHead>
                                         <TableHead className="hidden md:table-cell">Авто</TableHead>
+                                        <TableHead className="hidden lg:table-cell">Відстань</TableHead>
+                                        <TableHead className="hidden lg:table-cell">Вартість</TableHead>
                                         <TableHead>Статус</TableHead>
                                         <TableHead className="text-right">Дії</TableHead>
                                     </TableRow>
@@ -170,14 +174,19 @@ export default function ManagerMonitoringPage() {
                                                 <TableCell className="font-medium">{r.from} → {r.to}</TableCell>
                                                 <TableCell className="hidden md:table-cell text-muted-foreground">{r.driverName ?? "—"}</TableCell>
                                                 <TableCell className="hidden md:table-cell text-muted-foreground">{r.vehicleModel ?? "—"}</TableCell>
+                                                <TableCell className="hidden lg:table-cell text-muted-foreground">{r.distance > 0 ? `${r.distance} км` : "—"}</TableCell>
+                                                <TableCell className="hidden lg:table-cell text-muted-foreground">{r.totalCost ? `${r.totalCost.toFixed(2)} грн` : "—"}</TableCell>
                                                 <TableCell>
                                                     <Badge variant="outline" className={sc.color}>
                                                         <Icon className="h-3 w-3 mr-1" />{sc.label}
                                                     </Badge>
                                                 </TableCell>
-                                                <TableCell className="text-right">
+                                                <TableCell className="text-right space-x-2">
                                                     {r.status === "planned" && (
-                                                        <Button size="sm" onClick={() => handleUpdateRoute(r.id, "in-progress")}>Запустити</Button>
+                                                        <Button size="sm" onClick={() => handleUpdateRoute(r.id, "assigned")}>Передати на склад</Button>
+                                                    )}
+                                                    {r.status === "assigned" && (
+                                                        <Button size="sm" onClick={() => handleUpdateRoute(r.id, "in-progress")}>Відправити</Button>
                                                     )}
                                                     {r.status === "in-progress" && (
                                                         <Button size="sm" onClick={() => handleUpdateRoute(r.id, "completed")}>Завершити</Button>
@@ -187,7 +196,7 @@ export default function ManagerMonitoringPage() {
                                         );
                                     })}
                                     {filteredRoutes.length === 0 && (
-                                        <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Маршрутів немає</TableCell></TableRow>
+                                        <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Маршрутів немає</TableCell></TableRow>
                                     )}
                                 </TableBody>
                             </Table>

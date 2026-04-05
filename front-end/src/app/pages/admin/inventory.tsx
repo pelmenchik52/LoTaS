@@ -187,19 +187,38 @@ export default function AdminInventoryPage() {
   };
 
   const handleSaveProduct = async () => {
-    if (!productForm.name || !productForm.type || !productForm.weight || !productForm.urgencyCoefficient) {
-      toast.error("Заповніть обов'язкові поля");
+    if (!productForm.name.trim()) {
+      toast.error("Вкажіть назву товару");
+      return;
+    }
+    if (!productForm.type) {
+      toast.error("Оберіть тип товару");
+      return;
+    }
+    const weight = parseFloat(productForm.weight);
+    if (!productForm.weight || isNaN(weight) || weight <= 0) {
+      toast.error("Вага має бути більше 0");
+      return;
+    }
+    const urgency = parseFloat(productForm.urgencyCoefficient);
+    if (!productForm.urgencyCoefficient || isNaN(urgency) || urgency < 1 || urgency > 10) {
+      toast.error("Терміновість має бути від 1 до 10");
+      return;
+    }
+    const expirationDays = productForm.expirationDays ? parseInt(productForm.expirationDays) : undefined;
+    if (expirationDays !== undefined && (isNaN(expirationDays) || expirationDays < 1)) {
+      toast.error("Термін придатності має бути більше 0");
       return;
     }
 
     try {
       setSaving(true);
       const productData = {
-        name: productForm.name,
+        name: productForm.name.trim(),
         type: productForm.type,
-        weight: parseFloat(productForm.weight),
-        urgencyCoefficient: parseFloat(productForm.urgencyCoefficient),
-        expirationDays: productForm.expirationDays ? parseInt(productForm.expirationDays) : undefined,
+        weight,
+        urgencyCoefficient: urgency,
+        expirationDays,
         active: true,
       };
 
@@ -273,7 +292,7 @@ export default function AdminInventoryPage() {
                 </DialogHeader>
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label>Назва</Label>
+                    <Label>Назва *</Label>
                     <Input
                       value={productForm.name}
                       onChange={(e) => setProductForm({ ...productForm, name: e.target.value })}
@@ -281,7 +300,7 @@ export default function AdminInventoryPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Тип товару</Label>
+                    <Label>Тип товару *</Label>
                     <Select value={productForm.type} onValueChange={(value) => setProductForm({ ...productForm, type: value })}>
                       <SelectTrigger>
                         <SelectValue placeholder="Оберіть тип" />
@@ -296,23 +315,36 @@ export default function AdminInventoryPage() {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Вага (кг)</Label>
+                      <Label>Вага (кг) *</Label>
                       <Input
                         type="number"
                         step="0.1"
+                        min="0.01"
                         value={productForm.weight}
-                        onChange={(e) => setProductForm({ ...productForm, weight: e.target.value })}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          if (v === "" || v === "0.") { setProductForm({ ...productForm, weight: v }); return; }
+                          const n = parseFloat(v);
+                          if (isNaN(n)) return;
+                          setProductForm({ ...productForm, weight: n <= 0 ? "0.1" : v });
+                        }}
                         placeholder="1.0"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Коеф. терміновості (1-10)</Label>
+                      <Label>Терміновість (1-10) *</Label>
                       <Input
                         type="number"
                         min="1"
                         max="10"
                         value={productForm.urgencyCoefficient}
-                        onChange={(e) => setProductForm({ ...productForm, urgencyCoefficient: e.target.value })}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          if (v === "") { setProductForm({ ...productForm, urgencyCoefficient: "" }); return; }
+                          const n = parseInt(v);
+                          if (isNaN(n)) return;
+                          setProductForm({ ...productForm, urgencyCoefficient: String(Math.min(10, Math.max(1, n))) });
+                        }}
                         placeholder="5"
                       />
                     </div>
@@ -321,8 +353,15 @@ export default function AdminInventoryPage() {
                     <Label>Термін придатності (днів)</Label>
                     <Input
                       type="number"
+                      min="1"
                       value={productForm.expirationDays}
-                      onChange={(e) => setProductForm({ ...productForm, expirationDays: e.target.value })}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (v === "") { setProductForm({ ...productForm, expirationDays: "" }); return; }
+                        const n = parseInt(v);
+                        if (isNaN(n)) return;
+                        setProductForm({ ...productForm, expirationDays: n < 1 ? "1" : v });
+                      }}
                       placeholder="Опціонально"
                     />
                   </div>
