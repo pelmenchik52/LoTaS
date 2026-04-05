@@ -129,12 +129,12 @@ export default function ManagerCostsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="distance">Відстань (км)</Label>
-                    <Input id="distance" type="number" value={distance} onChange={(e) => setDistance(e.target.value)} placeholder="150" />
+                    <Input id="distance" type="number" min={0} value={distance} onChange={(e) => { const v = parseFloat(e.target.value); if (v < 0) { setDistance("0"); return; } setDistance(e.target.value); }} placeholder="150" />
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="fuelPrice">Ціна палива (грн/л)</Label>
-                    <Input id="fuelPrice" type="number" step="0.1" value={fuelPrice} onChange={(e) => setFuelPrice(e.target.value)} placeholder="52" />
+                    <Input id="fuelPrice" type="number" step="0.1" min={0} value={fuelPrice} onChange={(e) => { const v = parseFloat(e.target.value); if (v < 0) { setFuelPrice("0"); return; } setFuelPrice(e.target.value); }} placeholder="52" />
                   </div>
                 </div>
 
@@ -175,8 +175,9 @@ export default function ManagerCostsPage() {
                   <Input
                     id="cargoWeight"
                     type="number"
+                    min={0}
                     value={cargoWeight}
-                    onChange={(e) => setCargoWeight(e.target.value)}
+                    onChange={(e) => { const v = parseFloat(e.target.value); if (v < 0) { setCargoWeight("0"); return; } setCargoWeight(e.target.value); }}
                     placeholder="1000"
                   />
                 </div>
@@ -326,7 +327,7 @@ export default function ManagerCostsPage() {
 
                 <div className="space-y-2">
                   <Label htmlFor="salaryDistance">Відстань маршруту (км)</Label>
-                  <Input id="salaryDistance" type="number" value={salaryDistance} onChange={(e) => setSalaryDistance(e.target.value)} placeholder="500" />
+                  <Input id="salaryDistance" type="number" min={0} value={salaryDistance} onChange={(e) => { const v = parseFloat(e.target.value); if (v < 0) { setSalaryDistance("0"); return; } setSalaryDistance(e.target.value); }} placeholder="500" />
                 </div>
 
                 <div className="p-4 bg-blue-50 rounded-lg space-y-2">

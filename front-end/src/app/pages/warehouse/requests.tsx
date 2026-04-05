@@ -63,6 +63,7 @@ export default function WarehouseRequestsPage() {
         const product = products.find(p => p.id === Number(currentProductId));
         if (!product) return;
         const qty = parseFloat(currentQuantity);
+        if (isNaN(qty) || qty <= 0) { toast.error("Кількість має бути більше 0"); return; }
         setSelectedProducts(prev => [...prev, { productId: product.id, quantity: qty, weight: qty * product.weight }]);
         setCurrentProductId(""); setCurrentQuantity("");
     };
@@ -126,7 +127,13 @@ export default function WarehouseRequestsPage() {
                                     <div className="space-y-2 w-24">
                                         <Label>Кількість</Label>
                                         <Input type="number" min="1" value={currentQuantity}
-                                            onChange={e => setCurrentQuantity(e.target.value)} placeholder="0" />
+                                            onChange={e => {
+                                                const v = e.target.value;
+                                                if (v === "") { setCurrentQuantity(""); return; }
+                                                const n = parseFloat(v);
+                                                if (isNaN(n)) return;
+                                                setCurrentQuantity(n < 1 ? "1" : v);
+                                            }} placeholder="0" />
                                     </div>
                                     <Button onClick={handleAddProduct} type="button">Додати</Button>
                                 </div>

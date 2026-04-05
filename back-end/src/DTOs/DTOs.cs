@@ -125,10 +125,11 @@ public record RouteDto(
 
 public record CreateRouteDto(
     string From, string To, double Distance, double EstimatedTime,
-    int? DriverId, int? VehicleId, List<CreateOrderDto> Orders
+    int? DriverId, int? VehicleId, double? FuelPrice, List<CreateOrderDto> Orders
 );
 
 public record UpdateRouteStatusDto(string Status);
+public record UpdateOrderStatusDto(string Status);
 
 // Orders
 public record OrderDto(

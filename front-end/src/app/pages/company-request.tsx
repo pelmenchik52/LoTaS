@@ -373,7 +373,13 @@ export default function CompanyRequestPage() {
                             <div className="space-y-2 w-28">
                                 <Label>Кількість</Label>
                                 <Input type="number" min="1" value={currentQuantity}
-                                    onChange={e => setCurrentQuantity(e.target.value)} placeholder="0" />
+                                    onChange={e => {
+                                        const v = e.target.value;
+                                        if (v === "") { setCurrentQuantity(""); return; }
+                                        const n = parseFloat(v);
+                                        if (isNaN(n)) return;
+                                        setCurrentQuantity(n < 1 ? "1" : v);
+                                    }} placeholder="0" />
                             </div>
                             <Button onClick={handleAddProduct} type="button" className="gap-1">
                                 <Plus className="h-4 w-4" /> Додати

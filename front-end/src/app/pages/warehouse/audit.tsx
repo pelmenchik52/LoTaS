@@ -76,7 +76,8 @@ export default function WarehouseAuditPage() {
   };
 
   const handleSetActualQuantity = (id: string, value: string) => {
-    const quantity = value === "" ? null : parseInt(value);
+    let quantity = value === "" ? null : parseInt(value);
+    if (quantity !== null && quantity < 0) quantity = 0;
     setProducts(prev => prev.map(product => {
       if (product.id === id) {
         let status: AuditProduct["status"] = "not-checked";
@@ -309,6 +310,7 @@ export default function WarehouseAuditPage() {
                           </Button>
                           <Input
                             type="number"
+                            min={0}
                             value={product.actualQuantity ?? ""}
                             onChange={(e) => handleSetActualQuantity(product.id, e.target.value)}
                             className="w-20 text-center"

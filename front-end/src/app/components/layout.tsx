@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Outlet, Link, useNavigate, useLocation } from "react-router";
+import { authApi } from "../../api";
 import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { Avatar, AvatarFallback } from "./ui/avatar";
@@ -94,8 +95,8 @@ export default function Layout() {
   }, [navigate]);
 
   const handleLogout = () => {
-    localStorage.removeItem("userRole");
-    navigate("/");
+    authApi.logout();
+    navigate("/login", { replace: true });
   };
 
   const filteredMenuItems = menuItems.filter(item => item.roles.includes(userRole));
